@@ -145,71 +145,92 @@ Products created: P${start} → P${end}`
       </div>
 
       {/* ACTION SWITCH */}
-      <div className="center" style={{ marginBottom: "20px" }}>
-        <button className="btn-outline" onClick={() => setActiveAction("register")}>
-          Register Batch
-        </button>
-        <button className="btn-outline" onClick={() => setActiveAction("ship")}>
-          Ship Box
-        </button>
-        <button className="btn-outline" onClick={() => setActiveAction("fetch")}>
-          Fetch Product
-        </button>
-      </div>
+        <div className="center" style={{ marginBottom: "20px" }}>
+          <button className="btn-outline" onClick={() => setActiveAction("register")}>
+            Register Batch
+          </button>
+          <span style={{ margin: "0 8px" }} />
+          <button className="btn-outline" onClick={() => setActiveAction("ship")}>
+            Ship Box
+          </button>
+          <span style={{ margin: "0 8px" }} />
+          <button className="btn-outline" onClick={() => setActiveAction("fetch")}>
+            Fetch Product
+          </button>
+        </div>
 
-      {/* ================= REGISTER BATCH ================= */}
+        {/* ================= REGISTER BATCH ================= */}
 
       {activeAction === "register" && (
-        <div className="product-form">
-
+        <div className="product-form" style={{ paddingTop: "1px" }}>
           <h3>Batch Details</h3>
-
-          <div className="form-row">
-            <input disabled={batchCreated} placeholder="Batch ID"
-              value={batch.batchId}
-              onChange={e => setBatch({ ...batch, batchId: e.target.value })} />
-
-            <input disabled={batchCreated} placeholder="Box ID"
-              value={batch.boxId}
-              onChange={e => setBatch({ ...batch, boxId: e.target.value })} />
-
-            <input disabled={batchCreated} type="number" placeholder="Batch Size"
-              value={batch.batchSize}
-              onChange={e => setBatch({ ...batch, batchSize: Number(e.target.value) })} />
-
-            <input disabled={batchCreated} placeholder="Start Product ID"
-              value={batch.startProductId}
-              onChange={e => setBatch({ ...batch, startProductId: e.target.value })} />
+          <div className="form-row" style={{ paddingBottom: "4px" }}>
+            <div className="form-group">
+              <label>Batch ID</label>
+              <input disabled={batchCreated} placeholder="Batch ID"
+                value={batch.batchId}
+                onChange={e => setBatch({ ...batch, batchId: e.target.value })} />
+            </div>
+            <div className="form-group">
+              <label>Box ID</label>
+              <input disabled={batchCreated} placeholder="Box ID"
+                value={batch.boxId}
+                onChange={e => setBatch({ ...batch, boxId: e.target.value })} />
+            </div>
+            <div className="form-group">
+              <label>Batch Size</label>
+              <input disabled={batchCreated} type="number" placeholder="Batch Size"
+                value={batch.batchSize}
+                onChange={e => setBatch({ ...batch, batchSize: Number(e.target.value) })} />
+            </div>
+            <div className="form-group">
+              <label>Start Product ID</label>
+              <input disabled={batchCreated} placeholder="Start Product ID"
+                value={batch.startProductId}
+                onChange={e => setBatch({ ...batch, startProductId: e.target.value })} />
+            </div>
           </div>
 
           <h3>Product Template</h3>
-
           <div className="form-row">
-            <input disabled={batchCreated} placeholder="Product Name"
-              value={batch.name}
-              onChange={e => setBatch({ ...batch, name: e.target.value })} />
-
-            <input disabled={batchCreated} placeholder="Category"
-              value={batch.category}
-              onChange={e => setBatch({ ...batch, category: e.target.value })} />
-
-            <input disabled={batchCreated} placeholder="Model Number"
-              value={batch.modelNumber}
-              onChange={e => setBatch({ ...batch, modelNumber: e.target.value })} />
+            <div className="form-group">
+              <label>Product Name</label>
+              <input disabled={batchCreated} placeholder="Product Name"
+                value={batch.name}
+                onChange={e => setBatch({ ...batch, name: e.target.value })} />
+            </div>
+            <div className="form-group">
+              <label>Category</label>
+              <input disabled={batchCreated} placeholder="Category"
+                value={batch.category}
+                onChange={e => setBatch({ ...batch, category: e.target.value })} />
+            </div>
+            <div className="form-group">
+              <label>Model Number</label>
+              <input disabled={batchCreated} placeholder="Model Number"
+                value={batch.modelNumber}
+                onChange={e => setBatch({ ...batch, modelNumber: e.target.value })} />
+            </div>
           </div>
-
           <div className="form-row">
-            <input disabled={batchCreated} placeholder="Color"
-              value={batch.color}
-              onChange={e => setBatch({ ...batch, color: e.target.value })} />
-
-            <input disabled={batchCreated} placeholder="Warranty"
-              value={batch.warrantyPeriod}
-              onChange={e => setBatch({ ...batch, warrantyPeriod: e.target.value })} />
-
-            <input disabled={batchCreated} type="number" placeholder="Price"
-              value={batch.price}
-              onChange={e => setBatch({ ...batch, price: Number(e.target.value) })} />
+            <div className="form-group">
+              <label>Color</label>
+              <input disabled={batchCreated} placeholder="Color"
+                value={batch.color}
+                onChange={e => setBatch({ ...batch, color: e.target.value })} />
+            </div>
+            <div className="form-group">
+              <label>Warranty</label>
+              <input disabled={batchCreated} placeholder="Warranty"
+                value={batch.warrantyPeriod}
+                onChange={e => setBatch({ ...batch, warrantyPeriod: e.target.value })} />
+            </div>
+            <div className="form-group">
+              <label>Price</label>
+              <input disabled={batchCreated} type="number" placeholder="Price"
+                value={batch.price}
+                onChange={e => setBatch({ ...batch, price: Number(e.target.value) })} />
+            </div>
           </div>
 
           <button
@@ -224,35 +245,47 @@ Products created: P${start} → P${end}`
         </div>
       )}
 
-      {/* ================= SHIP BOX ================= */}
+     { /* ================= SHIP BOX ================= */}
 
       {activeAction === "ship" && (
         <div className="product-form">
-          <input placeholder="Enter Box ID"
-            value={boxId}
-            onChange={e => setBoxId(e.target.value)} />
+          <div className="form-group" style={{ marginBottom: "12px" , paddingTop: "8px"}}>
+            <label style={{ marginRight: "8px", paddingTop: "8px" }}>Enter Box ID</label>
+            <input
+              placeholder="Enter Box ID"
+              value={boxId}
+              onChange={e => setBoxId(e.target.value)}
+            />
+          </div>
 
-          <button className="btn-outline" onClick={handleFetchBox}>
-            Fetch Box
-          </button>
+          <div style={{ marginBottom: "12px" }}>
+            <button className="btn-outline" onClick={handleFetchBox}>
+              Fetch Box
+            </button>
+          </div>
 
           {boxProducts.length > 0 && (
-            <button className="btn-primary" onClick={handleShipBox}>
-              Ship All ({boxProducts.length})
-            </button>
+            <div style={{ marginBottom: "12px" }}>
+              <button className="btn-primary" onClick={handleShipBox}>
+                Ship All ({boxProducts.length})
+              </button>
+            </div>
           )}
 
           {status && <div className="login-error">{status}</div>}
         </div>
       )}
 
-      {/* ================= FETCH PRODUCT ================= */}
+     { /* ================= FETCH PRODUCT ================= */}
 
       {activeAction === "fetch" && (
         <div className="product-form">
-          <input placeholder="Enter Product ID"
-            value={searchProductId}
-            onChange={e => setSearchProductId(e.target.value)} />
+          <div className="form-group">
+            <label>Enter Product ID</label>
+            <input placeholder="Enter Product ID"
+              value={searchProductId}
+              onChange={e => setSearchProductId(e.target.value)} />
+          </div>
 
           <button className="btn-outline" onClick={handleFetchProduct}>
             Fetch
