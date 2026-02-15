@@ -208,75 +208,102 @@ const RetailerDashboard = () => {
 
   // UI
   return (
-    <div className="premium-dashboard full-width" style={{ padding: 18 }}>
-      <h2 style={{ marginTop: 0, marginBottom: 12 }}>Retailer Dashboard</h2>
+    <div className="premium-dashboard" style={{ width: "100vw", padding: "20px" }}>
+      <h2 style={{ marginTop: 0, marginBottom: 18 }}>Retailer Dashboard</h2>
 
       {/* Wallet connect */}
-      <div className="form-row center" style={{ marginBottom: 18 }}>
+      <div className="center" style={{ marginBottom: "20px" }}>
         <button
-          className={`btn-primary ${walletConnected ? "connected" : ""}`}
+          className="btn-primary"
           onClick={handleConnect}
+          style={{
+            backgroundColor: walletConnected ? "#28a745" : "#007bff",
+            minWidth: 140
+          }}
         >
           {walletConnected ? "Connected" : "Connect Wallet"}
         </button>
       </div>
 
       {/* Box section */}
-      <section style={{ marginBottom: 22 }}>
-        <h3 style={{ color: "#4f86ff", marginBottom: 8 }}>Box arrival — scan & verify</h3>
-        <div className="form-row" style={{ alignItems: "center" }}>
-          <input
-            className="login-input"
-            placeholder="Enter / scan Box ID (e.g. BOX123456)"
-            value={boxId}
-            onChange={(e) => setBoxId(e.target.value)}
-            style={{ width: 420 }}
-          />
-          <button className="btn-outline" onClick={handleFetchBox}>Search Box</button>
+      <section style={{ marginBottom: 32 }}>
+        <h3 style={{ color: "#ffffff", marginBottom: 18, paddingTop: 12 }}>Box Arrival — Scan & Verify</h3>
+        <div className="form-row" style={{ alignItems: "flex-end", gap: 0, marginBottom: 10 }}>
+          <div className="form-group" style={{ minWidth: 260, marginRight: 8 }}>
+            <label style={{ fontWeight: 500, marginBottom: 0, display: "block" }}>Box ID</label>
+            <input
+              className="login-input"
+              placeholder="Enter / scan Box ID (e.g. BOX123456)"
+              value={boxId}
+              onChange={(e) => setBoxId(e.target.value)}
+              style={{ width: 280, marginTop: 5 }}
+            />
+          </div>
+          <button
+            className="btn-outline"
+            onClick={handleFetchBox}
+            style={{ minWidth: 120, marginLeft: 8, marginBottom: 0, alignSelf: "flex-end" }}
+          >
+            Search Box
+          </button>
           <button
             className="btn-primary"
             onClick={handleVerifyBox}
             disabled={boxProducts.length === 0 || isVerifyingBox}
-            style={{ backgroundColor: "#28a745", color: "#fff" }}
+            style={{
+              backgroundColor: "#28a745",
+              color: "#fff",
+              minWidth: 160,
+              marginLeft: 8,
+              marginBottom: 0,
+              alignSelf: "flex-end"
+            }}
           >
             {isVerifyingBox ? "Verifying..." : `Verify Box (${boxProducts.length})`}
           </button>
         </div>
 
         {boxProducts.length > 0 && (
-          <div className="fetched-product-card" style={{ marginTop: 12 }}>
-            <div style={{ width: "100%" }}>
-              <strong>Box {boxId} — {boxProducts.length} product(s)</strong>
-              <ul style={{ marginTop: 8 }}>
-                {boxProducts.map(p => <li key={p.productId}><strong>{p.name}</strong> — <em>{p.productId}</em></li>)}
-              </ul>
-            </div>
+          <div className="fetched-product-card" style={{ marginTop: 12, padding: 16 }}>
+            <strong>Box {boxId} — {boxProducts.length} product(s)</strong>
+            <ul style={{ marginTop: 8, marginBottom: 0, paddingLeft: 18 }}>
+              {boxProducts.map(p => (
+                <li key={p.productId} style={{ marginBottom: 2 }}>
+                  <strong>{p.name}</strong> — <em>{p.productId}</em>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
       </section>
-
-      {/* Seal / product scan section */}
-      <section style={{ marginBottom: 22 }}>
-        <h3 style={{ color: "#4f86ff", marginBottom: 8 }}>Product authenticity (inner seal)</h3>
-        <div className="form-row" style={{ alignItems: "center" }}>
-          <input
-            className="login-input"
-            placeholder="Enter Product ID (e.g. P123456)"
-            value={scanProductId}
-            onChange={(e) => setScanProductId(e.target.value)}
-            style={{ width: 300 }}
-          />
-          <input
-            className="login-input"
-            placeholder="Paste scanned dynamic code (0x... from NFC/QR)"
-            value={scannedCode}
-            onChange={(e) => setScannedCode(e.target.value)}
-            style={{ width: 420 }}
-          />
+      <section style={{ marginBottom: 32 }}>
+        <h3 style={{ color: "#4f86ff", marginBottom: 12 }}>Product Authenticity (Inner Seal)</h3>
+        <div className="form-row" style={{ alignItems: "flex-end", gap: 18, marginBottom: 10 }}>
+          <div className="form-group" style={{ minWidth: 220 }}>
+            <label style={{ fontWeight: 500, marginBottom: 4 }}>Product ID</label>
+            <input
+              className="login-input"
+              placeholder="Enter Product ID (e.g. P123456)"
+              value={scanProductId}
+              onChange={(e) => setScanProductId(e.target.value)}
+              style={{ width: 220 }}
+            />
+          </div>
+          <div className="form-group" style={{ minWidth: 320 }}>
+            <label style={{ fontWeight: 500, marginBottom: 4 }}>Dynamic Code</label>
+            <input
+              className="login-input"
+              placeholder="Paste scanned dynamic code (0x... from NFC/QR)"
+              value={scannedCode}
+              onChange={(e) => setScannedCode(e.target.value)}
+              style={{ width: 320 }}
+            />
+          </div>
           <button
             className="btn-outline"
             onClick={handleVerifySeal}
             disabled={isVerifyingSeal}
+            style={{ minWidth: 120 }}
           >
             {isVerifyingSeal ? "Checking..." : "Verify Seal"}
           </button>
@@ -284,41 +311,94 @@ const RetailerDashboard = () => {
 
         {/* Scan result / product preview */}
         {scanResult && (
-          <div className="fetched-product-card premium" style={{ display: "flex", padding: 20, gap: 20, marginTop: 14 }}>
-            <div className="fetched-image" style={{ flex: "0 0 320px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div
+            className="fetched-product-card premium"
+            style={{
+              display: "flex",
+              padding: 24,
+              gap: 28,
+              marginTop: 18,
+              alignItems: "flex-start"
+            }}
+          >
+            <div
+              className="fetched-image"
+              style={{
+                flex: "0 0 240px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}
+            >
               {scanResult.product && scanResult.product.image ? (
                 <img
                   src={scanResult.product.image}
                   alt={scanResult.product.name}
                   style={{
-                    width: 320,
-                    height: 320,
-                    objectFit: "contain",    // important: prevents zoom/cropping — shows whole image
-                    borderRadius: 12,
+                    width: 220,
+                    height: 220,
+                    objectFit: "contain",
+                    borderRadius: 10,
                     boxShadow: "0 8px 30px rgba(0,0,0,0.5)",
                     background: "#0b0c10"
                   }}
                 />
               ) : (
-                <div style={{ width: 320, height: 200, display: "flex", alignItems: "center", justifyContent: "center", background: "#0b0c10", borderRadius: 10 }}>
+                <div
+                  style={{
+                    width: 220,
+                    height: 140,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: "#0b0c10",
+                    borderRadius: 8
+                  }}
+                >
                   <span style={{ color: "#999" }}>No image</span>
                 </div>
               )}
             </div>
 
             <div className="fetched-details" style={{ flex: 1 }}>
-              <h3 style={{ marginTop: 0 }}>{scanResult.product?.name || "(product)"}</h3>
-              <div className="details-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
-                <div><strong>Product ID:</strong> {scanResult.product?.productId}</div>
-                <div><strong>Box ID:</strong> {scanResult.product?.boxId}</div>
-                <div><strong>Manufacturer:</strong> {scanResult.product?.manufacturer}</div>
-                <div><strong>Model:</strong> {scanResult.product?.modelNumber}</div>
-                <div><strong>Serial:</strong> {scanResult.product?.serialNumber}</div>
-                <div><strong>Price:</strong> ₹{scanResult.product?.price}</div>
+              <h3 style={{ marginTop: 0, marginBottom: 10 }}>{scanResult.product?.name || "(product)"}</h3>
+              <div
+                className="details-grid"
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(2, 1fr)",
+                  gap: 10,
+                  marginBottom: 10
+                }}
+              >
+                <div>
+                  <label style={{ fontWeight: 500 }}>Product ID:</label>
+                  <div>{scanResult.product?.productId}</div>
+                </div>
+                <div>
+                  <label style={{ fontWeight: 500 }}>Box ID:</label>
+                  <div>{scanResult.product?.boxId}</div>
+                </div>
+                <div>
+                  <label style={{ fontWeight: 500 }}>Manufacturer:</label>
+                  <div>{scanResult.product?.manufacturer}</div>
+                </div>
+                <div>
+                  <label style={{ fontWeight: 500 }}>Model:</label>
+                  <div>{scanResult.product?.modelNumber}</div>
+                </div>
+                <div>
+                  <label style={{ fontWeight: 500 }}>Serial:</label>
+                  <div>{scanResult.product?.serialNumber}</div>
+                </div>
+                <div>
+                  <label style={{ fontWeight: 500 }}>Price:</label>
+                  <div>₹{scanResult.product?.price}</div>
+                </div>
               </div>
 
               <div style={{ marginTop: 14 }}>
-                <strong>Seal check:</strong>
+                <label style={{ fontWeight: 600 }}>Seal Check:</label>
                 <div style={{ marginTop: 8 }}>
                   {scanResult.ok ? (
                     <div style={{ color: "#2ecc71", fontWeight: 700 }}>
@@ -334,10 +414,14 @@ const RetailerDashboard = () => {
                 </div>
 
                 {scanResult.ok && (
-                  <div style={{ marginTop: 16 }}>
+                  <div style={{ marginTop: 18 }}>
                     <button
                       className="btn-primary"
-                      style={{ backgroundColor: "#e74c3c", color: "#fff" }}
+                      style={{
+                        backgroundColor: "#e74c3c",
+                        color: "#fff",
+                        minWidth: 180
+                      }}
                       onClick={() => handleMarkSold(scanResult.product.productId)}
                     >
                       Mark as Sold (seal broken)
@@ -351,13 +435,22 @@ const RetailerDashboard = () => {
       </section>
 
       {/* Status / error box */}
-      <div style={{ marginTop: 8 }}>
-        {status ? (
-          <div className="login-error" style={{ background: "#071218", color: "#ffdede", padding: 10 }}>
+      {status && (
+        <div style={{ marginTop: 8 }}>
+          <div
+            className="login-error"
+            style={{
+              background: "#071218",
+              color: "#ffdede",
+              padding: 10,
+              borderRadius: 6,
+              marginBottom: 0
+            }}
+          >
             {status}
           </div>
-        ) : null}
-      </div>
+        </div>
+      )}
     </div>
   );
 };
