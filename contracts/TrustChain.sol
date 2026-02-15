@@ -152,6 +152,12 @@ contract TrustChain {
     }
 }
 
+    function verifyProduct(string memory productId) external {
+        require(bytes(products[productId].productId).length > 0, "Not registered");
+        products[productId].verifiedByRetailer = true;
+        emit ProductVerified(productId);
+    }
+
 
     /* ================= SYSTEM VERIFY (Backend) ================= */
 

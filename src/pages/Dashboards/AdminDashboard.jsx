@@ -1,6 +1,6 @@
 // src/components/AdminDashboard.js
 import React, { useState } from "react";
-import { getProduct, getProductIdsByBox, shipBox, verifyBox, saleComplete, } from "../../trustChain";
+import { getProduct, getProductIdsByBox, shipBox, verifyProduct, saleComplete, } from "../../trustChain";
 import "../../index2.css";
 
 const AdminDashboard = () => {
@@ -43,7 +43,7 @@ const AdminDashboard = () => {
     try {
       await shipBox(productId);
       setStatus(`Product ${productId} marked as shipped.`);
-      fetchBoxProducts();
+      fetchBoxProducts(); // Refresh the product list
     } catch (e) {
       setStatus("Ship failed: " + e.message);
     }
@@ -51,9 +51,9 @@ const AdminDashboard = () => {
 
   const handleVerify = async (productId) => {
     try {
-      await verifyBox(productId);
+      await verifyProduct(productId);
       setStatus(`Product ${productId} verified.`);
-      fetchBoxProducts();
+      fetchBoxProducts(); // Refresh the product list
     } catch (e) {
       setStatus("Verify failed: " + e.message);
     }
@@ -63,7 +63,6 @@ const AdminDashboard = () => {
     try {
       await saleComplete(productId);
       setStatus(`Product ${productId} marked as sold.`);
-      fetchBoxProducts();
     } catch (e) {
       setStatus("Mark sold failed: " + e.message);
     }

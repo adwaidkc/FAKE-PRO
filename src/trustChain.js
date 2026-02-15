@@ -106,6 +106,13 @@ export const verifyBox = async (boxId) => {
   console.log("✅ Box verified by Retailer:", boxId);
 };
 
+export const verifyProduct = async (productId) => {
+  const contract = await getContract();
+  const tx = await contract.verifyProduct(productId);
+  await tx.wait();
+  console.log("✅ Product verified:", productId);
+};
+
 /* ================= SALE ================= */
 
 export const saleComplete = async (productId) => {

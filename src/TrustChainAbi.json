@@ -46,6 +46,19 @@
       "stateMutability": "nonpayable",
       "type": "function"
     },
+        {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "productId",
+          "type": "string"
+        }
+      ],
+      "name": "verifyProduct",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
 
   {
     "inputs": [
