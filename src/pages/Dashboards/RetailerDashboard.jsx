@@ -70,7 +70,7 @@ const RetailerDashboard = () => {
             productId: p.productId || id,
             name: p.name || "(no name)"
           });
-        } catch (err) {
+        } catch {
           // partial fallback
           fetched.push({ productId: id, name: "(error fetching name)" });
         }
@@ -209,7 +209,7 @@ const RetailerDashboard = () => {
   // UI
   return (
     <div className="premium-dashboard full-width" style={{ padding: 18 }}>
-      <h2 style={{ marginTop: 0, marginBottom: 12 }}>Retailer Dashboard — Box & Seal Verification</h2>
+      <h2 style={{ marginTop: 0, marginBottom: 12 }}>Retailer Dashboard</h2>
 
       {/* Wallet connect */}
       <div className="form-row center" style={{ marginBottom: 18 }}>

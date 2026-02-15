@@ -294,11 +294,19 @@ Products created: P${start} → P${end}`
             </button>
           </div>
           {fetchedProduct && (
-            <div className="fetched-product-card" style={{ marginTop: "16px" }}>
-              <h4>{fetchedProduct.name}</h4>
-              <p>Product ID: {fetchedProduct.productId}</p>
-              <p>Box ID: {fetchedProduct.boxId}</p>
-              <p>Shipped: {fetchedProduct.shipped ? "Yes" : "No"}</p>
+            <div
+              className="fetched-product-card"
+              style={{
+                marginTop: "16px",
+                display: "flex",
+                alignItems: "center",
+                gap: "24px"
+              }}
+            >
+              <h4 style={{ margin: 0 }}>{fetchedProduct.name}</h4>
+              <p style={{ margin: 0 }}>Product ID: {fetchedProduct.productId}</p>
+              <p style={{ margin: 0 }}>Box ID: {fetchedProduct.boxId}</p>
+              <p style={{ margin: 0 }}>Shipped: {fetchedProduct.shipped ? "Yes" : "No"}</p>
             </div>
           )}
           {status && <div className="login-error">{status}</div>}
