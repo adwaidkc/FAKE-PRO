@@ -5,7 +5,7 @@ import {
   connectBlockchain,
   getProduct,
   getProductIdsByBox,
-  verifyRetailer,
+  verifyBox,
   saleComplete
 } from "../../trustChain"; // adjust relative path if your trustChain is elsewhere
 import "../../index2.css";
@@ -94,9 +94,7 @@ const RetailerDashboard = () => {
     setIsVerifyingBox(true);
     setStatus("");
     try {
-      for (const p of boxProducts) {
-        await verifyRetailer(p.productId);
-      }
+      await verifyBox(boxId);
       setStatus(`All ${boxProducts.length} product(s) verified for box ${boxId}.`);
       // re-fetch to update statuses if desired (we only fetched minimal info for box)
     } catch (e) {
@@ -276,7 +274,7 @@ const RetailerDashboard = () => {
         )}
       </section>
       <section style={{ marginBottom: 32 }}>
-        <h3 style={{ color: "#4f86ff", marginBottom: 12 }}>Product Authenticity (Inner Seal)</h3>
+        <h3 style={{ color: "#ffffff", marginBottom: 12 }}>Product Authenticity (Inner Seal)</h3>
         <div className="form-row" style={{ alignItems: "flex-end", gap: 18, marginBottom: 10 }}>
           <div className="form-group" style={{ minWidth: 220 }}>
             <label style={{ fontWeight: 500, marginBottom: 4 }}>Product ID</label>

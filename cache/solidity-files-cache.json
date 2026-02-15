@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "D:\\Blockchain_proj\\FAKE-PRODUCT\\contracts\\TrustChain.sol": {
-      "lastModificationDate": 1767461801987,
-      "contentHash": "d4443d4656632c0a55b6a6750882d70b",
+      "lastModificationDate": 1771174185265,
+      "contentHash": "4d9d59f15dfffa3589202d46b0793c50",
       "sourceName": "contracts/TrustChain.sol",
       "solcConfig": {
         "version": "0.8.20",

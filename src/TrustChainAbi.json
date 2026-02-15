@@ -33,15 +33,19 @@
     "type": "function"
   },
 
-  {
-    "inputs": [
-      { "internalType": "string", "name": "_productId", "type": "string" }
-    ],
-    "name": "verifyRetailer",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "_boxId",
+          "type": "string"
+        }
+      ],
+      "name": "verifyBox",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
 
   {
     "inputs": [

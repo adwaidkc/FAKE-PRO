@@ -99,11 +99,11 @@ export const getProductIdsByBox = async (boxId) => {
 
 /* ================= RETAILER VERIFY ================= */
 
-export const verifyRetailer = async (productId) => {
+export const verifyBox = async (boxId) => {
   const contract = await getContract();
-  const tx = await contract.verifyRetailer(productId);
+  const tx = await contract.verifyBox(boxId);
   await tx.wait();
-  console.log("✅ Retailer verified:", productId);
+  console.log("✅ Box verified by Retailer:", boxId);
 };
 
 /* ================= SALE ================= */

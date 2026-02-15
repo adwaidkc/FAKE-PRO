@@ -140,11 +140,18 @@ contract TrustChain {
 
     /* ================= VERIFY (Retailer) ================= */
 
-    function verifyRetailer(string memory productId) external {
-        require(bytes(products[productId].productId).length > 0, "Not registered");
-        products[productId].verifiedByRetailer = true;
-        emit ProductVerified(productId);
+    function verifyBox(string memory _boxId) external {
+    string[] memory ids = productsByBox[_boxId];
+    require(ids.length > 0, "Box not found");
+
+    for (uint i = 0; i < ids.length; i++) {
+        if (!products[ids[i]].verifiedByRetailer) {
+            products[ids[i]].verifiedByRetailer = true;
+            emit ProductVerified(ids[i]);
+        }
     }
+}
+
 
     /* ================= SYSTEM VERIFY (Backend) ================= */
 
