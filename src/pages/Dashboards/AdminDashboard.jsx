@@ -1,5 +1,5 @@
 // src/components/AdminDashboard.js
-import React, { useState,useEffect } from "react";
+import React, { useState } from "react";
 import { getProduct, getProductIdsByBox, shipBox, verifyRetailer, saleComplete, } from "../../trustChain";
 import "../../index2.css";
 
