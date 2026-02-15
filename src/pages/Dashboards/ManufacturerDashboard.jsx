@@ -176,7 +176,7 @@ Products created: P${start} → P${end}`
                 onChange={e => setBatch({ ...batch, boxId: e.target.value })} />
             </div>
             <div className="form-group">
-              <label>Batch Size</label>
+              <label>Box Size</label>
               <input disabled={batchCreated} type="number" placeholder="Batch Size"
                 value={batch.batchSize}
                 onChange={e => setBatch({ ...batch, batchSize: Number(e.target.value) })} />

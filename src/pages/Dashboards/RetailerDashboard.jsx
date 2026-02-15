@@ -99,7 +99,6 @@ const RetailerDashboard = () => {
       }
       setStatus(`All ${boxProducts.length} product(s) verified for box ${boxId}.`);
       // re-fetch to update statuses if desired (we only fetched minimal info for box)
-      await handleFetchBox();
     } catch (e) {
       console.error(e);
       setStatus("Verify box failed: " + (e?.message || e));
@@ -264,11 +263,11 @@ const RetailerDashboard = () => {
         </div>
 
         {boxProducts.length > 0 && (
-          <div className="fetched-product-card" style={{ marginTop: 12, padding: 16 }}>
+          <div className="fetched-product-card" style={{ marginTop: 12, padding: 16, display: "block" }}>
             <strong>Box {boxId} — {boxProducts.length} product(s)</strong>
             <ul style={{ marginTop: 8, marginBottom: 0, paddingLeft: 18 }}>
               {boxProducts.map(p => (
-                <li key={p.productId} style={{ marginBottom: 2 }}>
+                <li key={p.productId} style={{ marginBottom: 2, }}>
                   <strong>{p.name}</strong> — <em>{p.productId}</em>
                 </li>
               ))}
