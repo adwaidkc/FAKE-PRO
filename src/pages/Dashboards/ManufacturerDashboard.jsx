@@ -106,7 +106,6 @@ Products created: P${start} → P${end}`
     setStatus("⏳ Shipping box...");
     await shipBox(boxId); // ✅ ONE transaction
     setStatus("✅ Box shipped successfully");
-    handleFetchBox();
   } catch (err) {
     console.error(err);
     setStatus("❌ Shipping failed");
@@ -145,22 +144,21 @@ Products created: P${start} → P${end}`
       </div>
 
       {/* ACTION SWITCH */}
-        <div className="center" style={{ marginBottom: "20px" }}>
-          <button className="btn-outline" onClick={() => setActiveAction("register")}>
-            Register Batch
-          </button>
-          <span style={{ margin: "0 8px" }} />
-          <button className="btn-outline" onClick={() => setActiveAction("ship")}>
-            Ship Box
-          </button>
-          <span style={{ margin: "0 8px" }} />
-          <button className="btn-outline" onClick={() => setActiveAction("fetch")}>
-            Fetch Product
-          </button>
-        </div>
+      <div className="center" style={{ marginBottom: "20px" }}>
+        <button className="btn-outline" onClick={() => setActiveAction("register")}>
+          Register Batch
+        </button>
+        <span style={{ margin: "0 8px" }} />
+        <button className="btn-outline" onClick={() => setActiveAction("ship")}>
+          Ship Box
+        </button>
+        <span style={{ margin: "0 8px" }} />
+        <button className="btn-outline" onClick={() => setActiveAction("fetch")}>
+          Fetch Product
+        </button>
+      </div>
 
-        {/* ================= REGISTER BATCH ================= */}
-
+      {/* ================= REGISTER BATCH ================= */}
       {activeAction === "register" && (
         <div className="product-form" style={{ paddingTop: "1px" }}>
           <h3>Batch Details</h3>
@@ -237,6 +235,7 @@ Products created: P${start} → P${end}`
             className="btn-primary"
             disabled={batchCreated}
             onClick={handleCreateBatch}
+            style={{ marginTop: "16px" }}
           >
             Create & Register Batch
           </button>
@@ -245,61 +244,63 @@ Products created: P${start} → P${end}`
         </div>
       )}
 
-     { /* ================= SHIP BOX ================= */}
-
+      {/* ================= SHIP BOX ================= */}
       {activeAction === "ship" && (
-        <div className="product-form">
-          <div className="form-group" style={{ marginBottom: "12px" , paddingTop: "8px"}}>
-            <label style={{ marginRight: "8px", paddingTop: "8px" }}>Enter Box ID</label>
-            <input
-              placeholder="Enter Box ID"
-              value={boxId}
-              onChange={e => setBoxId(e.target.value)}
-            />
+        <div className="product-form" style={{ paddingTop: "1px" }}>
+          <h3>Ship Box</h3>
+          <div className="form-row" style={{ paddingBottom: "4px" }}>
+            <div className="form-group">
+              <label>Box ID</label>
+              <input
+                placeholder="Enter Box ID"
+                value={boxId}
+                onChange={e => setBoxId(e.target.value)}
+              />
+            </div>
           </div>
-
-          <div style={{ marginBottom: "12px" }}>
+          <div className="form-row" style={{ marginBottom: "12px" }}>
             <button className="btn-outline" onClick={handleFetchBox}>
               Fetch Box
             </button>
           </div>
-
           {boxProducts.length > 0 && (
-            <div style={{ marginBottom: "12px" }}>
+            <div className="form-row" style={{ marginBottom: "12px" }}>
               <button className="btn-primary" onClick={handleShipBox}>
                 Ship All ({boxProducts.length})
               </button>
             </div>
           )}
-
           {status && <div className="login-error">{status}</div>}
         </div>
       )}
 
-     { /* ================= FETCH PRODUCT ================= */}
-
+      {/* ================= FETCH PRODUCT ================= */}
       {activeAction === "fetch" && (
-        <div className="product-form">
-          <div className="form-group">
-            <label>Enter Product ID</label>
-            <input placeholder="Enter Product ID"
-              value={searchProductId}
-              onChange={e => setSearchProductId(e.target.value)} />
+        <div className="product-form" style={{ paddingTop: "1px" }}>
+          <h3>Fetch Product</h3>
+          <div className="form-row" style={{ paddingBottom: "4px" }}>
+            <div className="form-group">
+              <label>Product ID</label>
+              <input
+                placeholder="Enter Product ID"
+                value={searchProductId}
+                onChange={e => setSearchProductId(e.target.value)}
+              />
+            </div>
           </div>
-
-          <button className="btn-outline" onClick={handleFetchProduct}>
-            Fetch
-          </button>
-
+          <div className="form-row" style={{ marginBottom: "12px" }}>
+            <button className="btn-outline" onClick={handleFetchProduct}>
+              Fetch
+            </button>
+          </div>
           {fetchedProduct && (
-            <div className="fetched-product-card">
+            <div className="fetched-product-card" style={{ marginTop: "16px" }}>
               <h4>{fetchedProduct.name}</h4>
               <p>Product ID: {fetchedProduct.productId}</p>
               <p>Box ID: {fetchedProduct.boxId}</p>
               <p>Shipped: {fetchedProduct.shipped ? "Yes" : "No"}</p>
             </div>
           )}
-
           {status && <div className="login-error">{status}</div>}
         </div>
       )}
