@@ -155,7 +155,8 @@ app.post("/prepare-batch", authenticate, async (req, res) => {
         update: { secret: productSecret },
         create: { productId, secret: productSecret }
       });
-
+ 
+      // store in blockchain
       items.push({
         productId,
         boxId: batch.boxId,

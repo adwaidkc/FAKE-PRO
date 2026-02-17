@@ -63,6 +63,7 @@ const AdminDashboard = () => {
     try {
       await saleComplete(productId);
       setStatus(`Product ${productId} marked as sold.`);
+      fetchBoxProducts();
     } catch (e) {
       setStatus("Mark sold failed: " + e.message);
     }
