@@ -48,8 +48,10 @@ contract TrustChain {
 
     /* ================= STORAGE ================= */
 
-    mapping(string => Product) private products;
-    mapping(string => string[]) private productsByBox;
+ mapping(address => mapping(string => Product)) private products;
+mapping(address => mapping(string => string[])) private productsByBox;
+
+
 
     /* ================= EVENTS ================= */
 
@@ -89,11 +91,11 @@ contract TrustChain {
             ProductInput calldata p = items[i];
 
             require(
-                bytes(products[p.productId].productId).length == 0,
-                "Product already exists"
-            );
+                bytes(products[msg.sender][p.productId].productId).length == 0,
+                "Product already exists for this manufacturer"
+                    );
 
-            products[p.productId] = Product(
+            products[msg.sender][p.productId] = Product(
                 p.productId,
                 boxId,
                 p.name,
@@ -115,7 +117,8 @@ contract TrustChain {
                 false
             );
 
-            productsByBox[boxId].push(p.productId);
+            
+            productsByBox[msg.sender][boxId].push(p.productId);
 
             emit ProductRegistered(p.productId, boxId);
         }
@@ -125,71 +128,90 @@ contract TrustChain {
 
     /* ================= SHIP ================= */
 
-    function shipBox(string memory _boxId) public {
-    string[] memory ids = productsByBox[_boxId];
+    function shipBox(string memory _boxId) external {
+    string[] storage ids = productsByBox[msg.sender][_boxId];
     require(ids.length > 0, "Box not found");
 
     for (uint i = 0; i < ids.length; i++) {
-        if (!products[ids[i]].shipped) {
-            products[ids[i]].shipped = true;
+        if (!products[msg.sender][ids[i]].shipped) {
+            products[msg.sender][ids[i]].shipped = true;
             emit ProductShipped(ids[i]);
         }
     }
 }
 
 
+
     /* ================= VERIFY (Retailer) ================= */
 
     function verifyBox(string memory _boxId) external {
-    string[] memory ids = productsByBox[_boxId];
+    string[] storage ids = productsByBox[msg.sender][_boxId];
     require(ids.length > 0, "Box not found");
 
     for (uint i = 0; i < ids.length; i++) {
-        if (!products[ids[i]].verifiedByRetailer) {
-            products[ids[i]].verifiedByRetailer = true;
+        if (!products[msg.sender][ids[i]].verifiedByRetailer) {
+            products[msg.sender][ids[i]].verifiedByRetailer = true;
             emit ProductVerified(ids[i]);
         }
     }
 }
 
+
     function verifyProduct(string memory productId) external {
-        require(bytes(products[productId].productId).length > 0, "Not registered");
-        products[productId].verifiedByRetailer = true;
-        emit ProductVerified(productId);
-    }
+    require(
+        bytes(products[msg.sender][productId].productId).length > 0,
+        "Not registered"
+    );
+
+    products[msg.sender][productId].verifiedByRetailer = true;
+    emit ProductVerified(productId);
+}
+
 
 
     /* ================= SYSTEM VERIFY (Backend) ================= */
 
     function verifyBySystem(string memory productId) external onlyOwner {
-        require(bytes(products[productId].productId).length > 0, "Not registered");
-        products[productId].verifiedBySystem = true;
-        emit ProductSystemVerified(productId);
-    }
+    require(
+        bytes(products[msg.sender][productId].productId).length > 0,
+        "Not registered"
+    );
+
+    products[msg.sender][productId].verifiedBySystem = true;
+    emit ProductSystemVerified(productId);
+}
+
 
     /* ================= SALE ================= */
 
     function saleComplete(string memory productId) external {
-        require(bytes(products[productId].productId).length > 0, "Not registered");
-        products[productId].sold = true;
-        emit ProductSold(productId);
-    }
+    require(
+        bytes(products[msg.sender][productId].productId).length > 0,
+        "Not registered"
+    );
+
+    products[msg.sender][productId].sold = true;
+    emit ProductSold(productId);
+}
+
 
     /* ================= FETCH ================= */
 
     function getProduct(string memory productId)
-        external
-        view
-        returns (Product memory)
-    {
-        return products[productId];
-    }
+    external
+    view
+    returns (Product memory)
+{
+    return products[msg.sender][productId];
+}
 
-    function getProductsByBox(string memory boxId)
-        external
-        view
-        returns (string[] memory)
-    {
-        return productsByBox[boxId];
-    }
+
+        function getProductsByBox(string memory boxId)
+            external
+            view
+            returns (string[] memory)
+        {
+            return productsByBox[msg.sender][boxId];
+        }
+
 }

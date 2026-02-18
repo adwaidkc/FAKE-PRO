@@ -6,26 +6,31 @@
 
 generator client {
   provider = "prisma-client-js"
-
 }
 
 datasource db {
   provider = "postgresql"
-  url = env("DATABASE_URL")
+  url      = env("DATABASE_URL")
 }
 
 model User {
-  id        Int     @id @default(autoincrement())
-  email     String  @unique
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
   password  String
   role      String
   createdAt DateTime @default(now())
+
+  products ProductSecret[] // relation
 }
 
 model ProductSecret {
-  id        Int    @id @default(autoincrement())
-  productId String @unique
-  secret    String
-  createdAt DateTime @default(now())
-}
+  id             Int      @id @default(autoincrement())
+  productId      String
+  manufacturerId Int
+  secret         String
+  createdAt      DateTime @default(now())
 
+  manufacturer User @relation(fields: [manufacturerId], references: [id])
+
+  @@unique([productId, manufacturerId])
+}

@@ -44,38 +44,46 @@ export const connectBlockchain = async () => {
 /* ================= ⭐ BATCH REGISTER (PRODUCTION) ================= */
 
 export const registerBatch = async (batch) => {
-  console.log("🏭 Registering batch:", batch.batchId);
+  try {
+    const contract = await getContract();
+    const token = localStorage.getItem("token");
 
-  const contract = await getContract();
+    const res = await fetch("http://localhost:5000/prepare-batch", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify(batch)
+    });
 
-  // 1️⃣ Ask backend to prepare batch (generate secrets + store in DB)
-  const token = localStorage.getItem("token");
-  const res = await fetch("http://localhost:5000/prepare-batch", {
-    method: "POST",
-    headers: { "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`
-     },
-    body: JSON.stringify(batch)
-  });
+    if (!res.ok) {
+      const err = await res.json();
+      return { success: false, message: err.error };
+    }
 
-  if (!res.ok) {
-    throw new Error("Failed to prepare batch on backend");
+    const { items } = await res.json();
+
+    const tx = await contract.registerBatchProducts(
+      batch.batchId,
+      batch.boxId,
+      items
+    );
+
+    await tx.wait();
+
+    return { success: true };
+
+  } catch (err) {
+
+    let message = "Batch registration failed";
+
+    if (err.reason) message = err.reason;
+    else if (err.shortMessage) message = err.shortMessage;
+    else if (err.message) message = err.message;
+
+    return { success: false, message };
   }
-
-  const { items } = await res.json();
-
-  console.log("🔐 Backend prepared secrets & returned items");
-
-  // 2️⃣ Single blockchain transaction
-  const tx = await contract.registerBatchProducts(
-    batch.batchId,
-    batch.boxId,
-    items
-  );
-
-  await tx.wait();
-
-  console.log("✅ Batch registered on blockchain (ONE TX)");
 };
 
 

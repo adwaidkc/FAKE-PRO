@@ -59,24 +59,28 @@ const ManufacturerDashboard = () => {
 
   /* ================= CREATE & REGISTER BATCH ================= */
 
-  const handleCreateBatch = async () => {
-    try {
-      setStatus("⏳ Registering batch on blockchain...");
-      await registerBatch(batch);
-      setBatchCreated(true);
+const handleCreateBatch = async () => {
+  setStatus("⏳ Registering batch...");
 
-      const start = parseInt(batch.startProductId.replace(/\D/g, ""));
-      const end = start + batch.batchSize - 1;
+  const result = await registerBatch(batch);
 
-      setStatus(
-        `✅ Batch registered successfully.
+  if (!result.success) {
+    setStatus("❌ " + result.message);
+    return;
+  }
+
+  setBatchCreated(true);
+
+  const start = parseInt(batch.startProductId.replace(/\D/g, ""));
+  const end = start + batch.batchSize - 1;
+
+  setStatus(
+    `✅ Batch registered successfully.
 Products created: P${start} → P${end}`
-      );
-    } catch (err) {
-      console.error(err);
-      setStatus("❌ Batch registration failed");
-    }
-  };
+  );
+};
+
+
 
   /* ================= FETCH BOX ================= */
 

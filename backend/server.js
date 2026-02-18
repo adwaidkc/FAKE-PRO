@@ -130,6 +130,7 @@ app.post("/nfc/sign", async (req, res) => {
 app.post("/prepare-batch", authenticate, async (req, res) => {
   try {
     const batch = req.body;
+    const manufacturerId = req.user.userId; // ✅ FIX
 
     const startNum = parseInt(
       batch.startProductId.replace(/\D/g, ""),
@@ -144,19 +145,34 @@ app.post("/prepare-batch", authenticate, async (req, res) => {
       const productId = `P${startNum + i}`;
       const serialNumber = `${batch.batchId}-SN-${i + 1}`;
 
+      // Check existing product for same manufacturer
+      const existing = await prisma.productSecret.findFirst({
+        where: {
+          productId,
+          manufacturerId
+        }
+      });
+
+      if (existing) {
+        return res.status(400).json({
+          error: `Product ${productId} already exists`
+        });
+      }
+
       const productSecret = crypto
         .createHash("sha256")
         .update(batchSecret + productId)
         .digest("hex");
 
-      // ✅ Store in DB
-      await prisma.productSecret.upsert({
-        where: { productId },
-        update: { secret: productSecret },
-        create: { productId, secret: productSecret }
+      // Store in DB
+      await prisma.productSecret.create({
+        data: {
+          productId,
+          secret: productSecret,
+          manufacturerId   // ✅ now defined
+        }
       });
- 
-      // store in blockchain
+
       items.push({
         productId,
         boxId: batch.boxId,
@@ -176,8 +192,6 @@ app.post("/prepare-batch", authenticate, async (req, res) => {
       });
     }
 
-    console.log("✅ Batch prepared with secrets stored in DB");
-
     res.json({ items });
 
   } catch (err) {
@@ -185,7 +199,6 @@ app.post("/prepare-batch", authenticate, async (req, res) => {
     res.status(500).json({ error: "Batch preparation failed" });
   }
 });
-
 
 
 
