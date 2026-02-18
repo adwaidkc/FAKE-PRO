@@ -3,11 +3,14 @@
 import crypto from "crypto";
 import { prisma } from "../prismaClient.js";
 
+
+
 export async function signChallenge(productId, challenge) {
 
-  const record = await prisma.productSecret.findUnique({
-    where: { productId }
-  });
+  const record = await prisma.productSecret.findFirst({
+        where: { productId }
+    });
+
 
   if (!record) {
     throw new Error("Unknown NFC chip / secret not found");
@@ -20,3 +23,4 @@ export async function signChallenge(productId, challenge) {
     .update(secret + challenge)
     .digest("hex");
 }
+

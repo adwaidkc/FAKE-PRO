@@ -21,6 +21,7 @@ model User {
   createdAt DateTime @default(now())
 
   products ProductSecret[] // relation
+  boxes     Box[]  
 }
 
 model ProductSecret {
@@ -34,3 +35,16 @@ model ProductSecret {
 
   @@unique([productId, manufacturerId])
 }
+
+model Box {
+  id             Int      @id @default(autoincrement())
+  boxId          String
+  manufacturerId Int
+  batchId        String
+  createdAt      DateTime @default(now())
+
+  manufacturer   User     @relation(fields: [manufacturerId], references: [id])
+
+  @@unique([boxId, manufacturerId])
+}
+

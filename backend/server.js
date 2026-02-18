@@ -117,7 +117,7 @@ app.post("/nfc/sign", async (req, res) => {
       });
     }
 
-    const response = await signChallenge(productId, challenge);
+    const response = await signChallenge(productId, challenge,);
 
     res.json({ response });
 
@@ -130,30 +130,56 @@ app.post("/nfc/sign", async (req, res) => {
 app.post("/prepare-batch", authenticate, async (req, res) => {
   try {
     const batch = req.body;
-    const manufacturerId = req.user.userId; // ✅ FIX
+    const manufacturerId = req.user.userId;
 
     const startNum = parseInt(
       batch.startProductId.replace(/\D/g, ""),
       10
     );
 
+    /* ================= CHECK BOX ================= */
+
+    const existingBox = await prisma.box.findFirst({
+      where: {
+        boxId: batch.boxId,
+        manufacturerId
+      }
+    });
+
+    if (existingBox) {
+      return res.status(400).json({
+        error: `Box ${batch.boxId} already exists`
+      });
+    }
+
+    /* ================= CREATE BOX (ONLY ONCE) ================= */
+
+    await prisma.box.create({
+      data: {
+        boxId: batch.boxId,
+        batchId: batch.batchId,
+        manufacturerId
+      }
+    });
+
     const batchSecret = crypto.randomBytes(32).toString("hex");
 
     const items = [];
+
+    /* ================= CREATE PRODUCTS ================= */
 
     for (let i = 0; i < batch.batchSize; i++) {
       const productId = `P${startNum + i}`;
       const serialNumber = `${batch.batchId}-SN-${i + 1}`;
 
-      // Check existing product for same manufacturer
-      const existing = await prisma.productSecret.findFirst({
+      const existingProduct = await prisma.productSecret.findFirst({
         where: {
           productId,
           manufacturerId
         }
       });
 
-      if (existing) {
+      if (existingProduct) {
         return res.status(400).json({
           error: `Product ${productId} already exists`
         });
@@ -164,12 +190,11 @@ app.post("/prepare-batch", authenticate, async (req, res) => {
         .update(batchSecret + productId)
         .digest("hex");
 
-      // Store in DB
       await prisma.productSecret.create({
         data: {
           productId,
           secret: productSecret,
-          manufacturerId   // ✅ now defined
+          manufacturerId
         }
       });
 
@@ -199,6 +224,7 @@ app.post("/prepare-batch", authenticate, async (req, res) => {
     res.status(500).json({ error: "Batch preparation failed" });
   }
 });
+
 
 
 
