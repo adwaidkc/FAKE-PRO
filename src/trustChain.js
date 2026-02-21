@@ -13,6 +13,11 @@ const getProvider = () => {
   return new ethers.BrowserProvider(window.ethereum);
 };
 
+const buildManufacturerQuery = (manufacturerId) => {
+  if (!manufacturerId) return "";
+  return `?manufacturerId=${encodeURIComponent(manufacturerId)}`;
+};
+
 /* ================= CONTRACT ================= */
 
 const getContract = async () => {
@@ -89,18 +94,20 @@ export const registerBatch = async (batch) => {
 
 /* ================= SHIP ================= */
 
-export const shipBox = async (boxId) => {
+export const shipBox = async (boxId, manufacturerId = null) => {
   const contract = await getContract();
   const tx = await contract.shipBox(boxId);
   await tx.wait();
 
   const token = localStorage.getItem("token");
-  const syncRes = await fetch(`http://localhost:5000/api/db/box/${encodeURIComponent(boxId)}/ship`, {
+  const query = buildManufacturerQuery(manufacturerId);
+  const syncRes = await fetch(`http://localhost:5000/api/db/box/${encodeURIComponent(boxId)}/ship${query}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${token}`
-    }
+    },
+    body: manufacturerId ? JSON.stringify({ manufacturerId }) : undefined
   });
 
   if (!syncRes.ok) {
@@ -122,26 +129,77 @@ export const getProductIdsByBox = async (boxId) => {
 
 /* ================= RETAILER VERIFY ================= */
 
-export const verifyBox = async (boxId) => {
+export const verifyBox = async (boxId, manufacturerId = null) => {
   const contract = await getContract();
   const tx = await contract.verifyBox(boxId);
   await tx.wait();
+
+  const token = localStorage.getItem("token");
+  const query = buildManufacturerQuery(manufacturerId);
+  const syncRes = await fetch(`http://localhost:5000/api/db/box/${encodeURIComponent(boxId)}/verify${query}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: manufacturerId ? JSON.stringify({ manufacturerId }) : undefined
+  });
+
+  if (!syncRes.ok) {
+    const err = await syncRes.json().catch(() => ({}));
+    throw new Error(err.error || "DB verify sync failed");
+  }
+
   console.log("✅ Box verified by Retailer:", boxId);
 };
 
-export const verifyProduct = async (productId) => {
+export const verifyProduct = async (productId, manufacturerId = null) => {
   const contract = await getContract();
   const tx = await contract.verifyProduct(productId);
   await tx.wait();
+
+  const token = localStorage.getItem("token");
+  const query = buildManufacturerQuery(manufacturerId);
+  const syncRes = await fetch(`http://localhost:5000/api/db/product/${encodeURIComponent(productId)}/verify${query}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: manufacturerId ? JSON.stringify({ manufacturerId }) : undefined
+  });
+
+  if (!syncRes.ok) {
+    const err = await syncRes.json().catch(() => ({}));
+    throw new Error(err.error || "DB verify sync failed");
+  }
+
   console.log("✅ Product verified:", productId);
 };
 
 /* ================= SALE ================= */
 
-export const saleComplete = async (productId) => {
+export const saleComplete = async (productId, manufacturerId = null) => {
   const contract = await getContract();
   const tx = await contract.saleComplete(productId);
   await tx.wait();
+
+  const token = localStorage.getItem("token");
+  const query = buildManufacturerQuery(manufacturerId);
+  const syncRes = await fetch(`http://localhost:5000/api/db/product/${encodeURIComponent(productId)}/sold${query}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: manufacturerId ? JSON.stringify({ manufacturerId }) : undefined
+  });
+
+  if (!syncRes.ok) {
+    const err = await syncRes.json().catch(() => ({}));
+    throw new Error(err.error || "DB sold sync failed");
+  }
+
   console.log("💰 Sold:", productId);
 };
 

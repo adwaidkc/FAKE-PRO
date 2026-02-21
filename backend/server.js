@@ -36,6 +36,13 @@ app.use(express.json());
 
 app.use("/api/auth", authRoutes);
 
+function requireAdmin(req, res, next) {
+  if (req.user.role !== "ADMIN") {
+    return res.status(403).json({ error: "Admin access required" });
+  }
+  next();
+}
+
 function getScopedManufacturerId(req, res) {
   const isAdmin = req.user.role === "ADMIN";
 
@@ -46,6 +53,20 @@ function getScopedManufacturerId(req, res) {
   const parsed = Number.parseInt(String(req.query.manufacturerId), 10);
   if (Number.isNaN(parsed) || parsed <= 0) {
     res.status(400).json({ error: "manufacturerId must be a valid integer" });
+    return null;
+  }
+
+  return parsed;
+}
+
+function getMutationManufacturerId(req, res) {
+  if (req.user.role !== "ADMIN") return req.user.userId;
+
+  const raw = req.body?.manufacturerId ?? req.query.manufacturerId;
+  const parsed = Number.parseInt(String(raw || ""), 10);
+
+  if (Number.isNaN(parsed) || parsed <= 0) {
+    res.status(400).json({ error: "manufacturerId is required for admin actions" });
     return null;
   }
 
@@ -100,6 +121,179 @@ app.get("/api/db/box/:boxId/products", authenticate, async (req, res) => {
   } catch (err) {
     console.error("❌ Box products query failed:", err);
     res.status(500).json({ error: "Box products query failed" });
+  }
+});
+
+app.get("/api/admin/manufacturers", authenticate, requireAdmin, async (req, res) => {
+  try {
+    const manufacturers = await prisma.user.findMany({
+      where: { role: "MANUFACTURER" },
+      select: { id: true, email: true, createdAt: true },
+      orderBy: { createdAt: "desc" }
+    });
+
+    if (manufacturers.length === 0) {
+      return res.json({ manufacturers: [] });
+    }
+
+    const [totals, shipped, verified, sold, latestProductAt, boxCounts] = await Promise.all([
+      prisma.product.groupBy({
+        by: ["manufacturerId"],
+        _count: { _all: true }
+      }),
+      prisma.product.groupBy({
+        by: ["manufacturerId"],
+        where: { shipped: true },
+        _count: { _all: true }
+      }),
+      prisma.product.groupBy({
+        by: ["manufacturerId"],
+        where: { verified: true },
+        _count: { _all: true }
+      }),
+      prisma.product.groupBy({
+        by: ["manufacturerId"],
+        where: { sold: true },
+        _count: { _all: true }
+      }),
+      prisma.product.groupBy({
+        by: ["manufacturerId"],
+        _max: { createdAt: true }
+      }),
+      prisma.box.groupBy({
+        by: ["manufacturerId"],
+        _count: { _all: true }
+      })
+    ]);
+
+    const totalMap = new Map(totals.map((x) => [x.manufacturerId, x._count._all]));
+    const shippedMap = new Map(shipped.map((x) => [x.manufacturerId, x._count._all]));
+    const verifiedMap = new Map(verified.map((x) => [x.manufacturerId, x._count._all]));
+    const soldMap = new Map(sold.map((x) => [x.manufacturerId, x._count._all]));
+    const latestMap = new Map(latestProductAt.map((x) => [x.manufacturerId, x._max.createdAt]));
+    const boxMap = new Map(boxCounts.map((x) => [x.manufacturerId, x._count._all]));
+
+    const payload = manufacturers.map((m) => ({
+      id: m.id,
+      email: m.email,
+      createdAt: m.createdAt,
+      totalBoxes: boxMap.get(m.id) || 0,
+      totalProducts: totalMap.get(m.id) || 0,
+      shippedProducts: shippedMap.get(m.id) || 0,
+      verifiedProducts: verifiedMap.get(m.id) || 0,
+      soldProducts: soldMap.get(m.id) || 0,
+      latestProductAt: latestMap.get(m.id) || null
+    }));
+
+    return res.json({ manufacturers: payload });
+  } catch (err) {
+    console.error("❌ Admin manufacturers query failed:", err);
+    res.status(500).json({ error: "Admin manufacturers query failed" });
+  }
+});
+
+app.get("/api/admin/batches", authenticate, requireAdmin, async (req, res) => {
+  try {
+    const rawManufacturerId = String(req.query.manufacturerId || "").trim();
+    const manufacturerId = rawManufacturerId ? Number.parseInt(rawManufacturerId, 10) : null;
+
+    if (rawManufacturerId && (Number.isNaN(manufacturerId) || manufacturerId <= 0)) {
+      return res.status(400).json({ error: "manufacturerId must be a valid integer" });
+    }
+
+    const groups = await prisma.product.groupBy({
+      by: ["manufacturerId", "batchId"],
+      where: manufacturerId ? { manufacturerId } : undefined,
+      _count: { _all: true },
+      _max: { createdAt: true },
+      orderBy: [{ _max: { createdAt: "desc" } }]
+    });
+
+    return res.json({
+      batches: groups.map((g) => ({
+        manufacturerId: g.manufacturerId,
+        batchId: g.batchId,
+        productCount: g._count._all,
+        latestProductAt: g._max.createdAt
+      }))
+    });
+  } catch (err) {
+    console.error("❌ Admin batches query failed:", err);
+    res.status(500).json({ error: "Admin batches query failed" });
+  }
+});
+
+app.get("/api/admin/products", authenticate, requireAdmin, async (req, res) => {
+  try {
+    const status = String(req.query.status || "ALL").trim().toUpperCase();
+    const batchId = String(req.query.batchId || "").trim();
+    const fromDate = String(req.query.fromDate || "").trim();
+    const toDate = String(req.query.toDate || "").trim();
+    const rawManufacturerId = String(req.query.manufacturerId || "").trim();
+    const sortBy = String(req.query.sortBy || "createdAt").trim();
+    const sortOrder = String(req.query.sortOrder || "desc").toLowerCase() === "asc" ? "asc" : "desc";
+    const page = Math.max(Number.parseInt(String(req.query.page || "1"), 10) || 1, 1);
+    const pageSize = Math.min(Math.max(Number.parseInt(String(req.query.pageSize || "25"), 10) || 25, 1), 100);
+
+    const manufacturerId = rawManufacturerId ? Number.parseInt(rawManufacturerId, 10) : null;
+    if (rawManufacturerId && (Number.isNaN(manufacturerId) || manufacturerId <= 0)) {
+      return res.status(400).json({ error: "manufacturerId must be a valid integer" });
+    }
+
+    const createdAt = {};
+    if (fromDate) createdAt.gte = new Date(`${fromDate}T00:00:00.000Z`);
+    if (toDate) createdAt.lte = new Date(`${toDate}T23:59:59.999Z`);
+
+    const where = {
+      ...(manufacturerId ? { manufacturerId } : {}),
+      ...(batchId ? { batchId } : {}),
+      ...(fromDate || toDate ? { createdAt } : {}),
+      ...(status !== "ALL" ? { lifecycle: status } : {})
+    };
+
+    const orderByMap = {
+      createdAt: { createdAt: sortOrder },
+      batchId: { batchId: sortOrder },
+      productId: { productId: sortOrder },
+      lifecycle: { lifecycle: sortOrder },
+      manufacturer: { manufacturer: { email: sortOrder } },
+      boxId: { box: { boxId: sortOrder } }
+    };
+    const orderBy = orderByMap[sortBy] || orderByMap.createdAt;
+
+    const [total, products] = await Promise.all([
+      prisma.product.count({ where }),
+      prisma.product.findMany({
+        where,
+        include: {
+          manufacturer: {
+            select: {
+              id: true,
+              email: true
+            }
+          },
+          box: {
+            select: {
+              id: true,
+              boxId: true
+            }
+          }
+        },
+        orderBy,
+        skip: (page - 1) * pageSize,
+        take: pageSize
+      })
+    ]);
+
+    return res.json({
+      page,
+      pageSize,
+      total,
+      products
+    });
+  } catch (err) {
+    console.error("❌ Admin products query failed:", err);
+    res.status(500).json({ error: "Admin products query failed" });
   }
 });
 
@@ -169,7 +363,8 @@ app.get("/api/db/dashboard/summary", authenticate, async (req, res) => {
 
 app.post("/api/db/box/:boxId/ship", authenticate, async (req, res) => {
   try {
-    const manufacturerId = req.user.userId;
+    const manufacturerId = getMutationManufacturerId(req, res);
+    if (!manufacturerId) return;
     const boxId = String(req.params.boxId || "").trim();
 
     if (!boxId) {
@@ -228,6 +423,121 @@ app.post("/api/db/box/:boxId/ship", authenticate, async (req, res) => {
   } catch (err) {
     console.error("❌ Box ship sync failed:", err);
     res.status(500).json({ error: "Box ship sync failed" });
+  }
+});
+
+app.post("/api/db/box/:boxId/verify", authenticate, async (req, res) => {
+  try {
+    const manufacturerId = getMutationManufacturerId(req, res);
+    if (!manufacturerId) return;
+
+    const boxId = String(req.params.boxId || "").trim();
+    if (!boxId) {
+      return res.status(400).json({ error: "boxId is required" });
+    }
+
+    const box = await prisma.box.findUnique({
+      where: {
+        manufacturerId_boxId: {
+          manufacturerId,
+          boxId
+        }
+      }
+    });
+
+    if (!box) {
+      return res.status(404).json({ error: "Box not found" });
+    }
+
+    await prisma.product.updateMany({
+      where: {
+        manufacturerId,
+        boxId: box.id,
+        sold: false
+      },
+      data: {
+        verified: true,
+        lifecycle: "VERIFIED"
+      }
+    });
+
+    const verifiedCount = await prisma.product.count({
+      where: {
+        manufacturerId,
+        boxId: box.id,
+        verified: true
+      }
+    });
+
+    return res.json({ boxId, verifiedCount });
+  } catch (err) {
+    console.error("❌ Box verify sync failed:", err);
+    res.status(500).json({ error: "Box verify sync failed" });
+  }
+});
+
+app.post("/api/db/product/:productId/verify", authenticate, async (req, res) => {
+  try {
+    const manufacturerId = getMutationManufacturerId(req, res);
+    if (!manufacturerId) return;
+
+    const productId = String(req.params.productId || "").trim();
+    if (!productId) {
+      return res.status(400).json({ error: "productId is required" });
+    }
+
+    const updated = await prisma.product.updateMany({
+      where: {
+        manufacturerId,
+        productId,
+        sold: false
+      },
+      data: {
+        verified: true,
+        lifecycle: "VERIFIED"
+      }
+    });
+
+    if (updated.count === 0) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    return res.json({ productId, updated: true });
+  } catch (err) {
+    console.error("❌ Product verify sync failed:", err);
+    res.status(500).json({ error: "Product verify sync failed" });
+  }
+});
+
+app.post("/api/db/product/:productId/sold", authenticate, async (req, res) => {
+  try {
+    const manufacturerId = getMutationManufacturerId(req, res);
+    if (!manufacturerId) return;
+
+    const productId = String(req.params.productId || "").trim();
+    if (!productId) {
+      return res.status(400).json({ error: "productId is required" });
+    }
+
+    const updated = await prisma.product.updateMany({
+      where: {
+        manufacturerId,
+        productId
+      },
+      data: {
+        sold: true,
+        lifecycle: "SOLD"
+      }
+    });
+
+    if (updated.count === 0) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    return res.json({ productId, updated: true });
+  } catch (err) {
+    console.error("❌ Product sold sync failed:", err);
+    res.status(500).json({ error: "Product sold sync failed" });
   }
 });
 /* ================= BLOCKCHAIN SETUP ================= */
