@@ -4,13 +4,18 @@ import jwt from "jsonwebtoken";
 import { prisma } from "../prismaClient.js";
 
 const router = express.Router();
+const ALLOWED_ROLES = new Set(["ADMIN", "MANUFACTURER", "RETAILER", "USER"]);
 
 /* ================= REGISTER ================= */
 router.post("/register", async (req, res) => {
   const { email, password, role } = req.body;
+  const normalizedRole = String(role || "").trim().toUpperCase();
 
   if (!email || !password || !role)
     return res.status(400).json({ error: "All fields required" });
+
+  if (!ALLOWED_ROLES.has(normalizedRole))
+    return res.status(400).json({ error: "Invalid role" });
 
   const existing = await prisma.user.findUnique({
     where: { email }
@@ -25,17 +30,18 @@ router.post("/register", async (req, res) => {
     data: {
       email,
       password: hashed,
-      role
+      role: normalizedRole
     }
   });
 
-  res.json({ message: "User registered", role: user.role });
+  res.json({ message: "User registered", role: user.role.toLowerCase() });
 });
 
 
 /* ================= LOGIN ================= */
 router.post("/login", async (req, res) => {
   const { email, password, role } = req.body;
+  const normalizedRole = String(role || "").trim().toUpperCase();
 
   if (!email || !password || !role)
     return res.status(400).json({ error: "All fields required" });
@@ -52,7 +58,7 @@ router.post("/login", async (req, res) => {
     return res.status(401).json({ error: "Invalid credentials" });
 
   // 🔥 ROLE CHECK
-  if (user.role !== role) {
+  if (user.role !== normalizedRole) {
     return res.status(403).json({
       error: `Access denied for ${role} portal`
     });
@@ -67,7 +73,7 @@ router.post("/login", async (req, res) => {
     { expiresIn: "1d" }
   );
 
-  res.json({ token, role: user.role });
+  res.json({ token, role: user.role.toLowerCase() });
 });
 
 

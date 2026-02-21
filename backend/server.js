@@ -35,6 +35,201 @@ app.use(express.json());
 
 
 app.use("/api/auth", authRoutes);
+
+function getScopedManufacturerId(req, res) {
+  const isAdmin = req.user.role === "ADMIN";
+
+  if (!isAdmin) return req.user.userId;
+
+  if (!req.query.manufacturerId) return req.user.userId;
+
+  const parsed = Number.parseInt(String(req.query.manufacturerId), 10);
+  if (Number.isNaN(parsed) || parsed <= 0) {
+    res.status(400).json({ error: "manufacturerId must be a valid integer" });
+    return null;
+  }
+
+  return parsed;
+}
+
+app.get("/api/db/box/:boxId/products", authenticate, async (req, res) => {
+  try {
+    const manufacturerId = getScopedManufacturerId(req, res);
+    if (!manufacturerId) return;
+
+    const boxId = String(req.params.boxId || "").trim();
+    if (!boxId) {
+      return res.status(400).json({ error: "boxId is required" });
+    }
+
+    const box = await prisma.box.findUnique({
+      where: {
+        manufacturerId_boxId: {
+          manufacturerId,
+          boxId
+        }
+      },
+      include: {
+        products: {
+          select: {
+            productId: true,
+            batchId: true,
+            lifecycle: true,
+            shipped: true,
+            verified: true,
+            sold: true,
+            createdAt: true
+          },
+          orderBy: { productId: "asc" }
+        }
+      }
+    });
+
+    if (!box) {
+      return res.status(404).json({ error: "Box not found" });
+    }
+
+    return res.json({
+      box: {
+        boxId: box.boxId,
+        batchId: box.batchId,
+        createdAt: box.createdAt
+      },
+      products: box.products
+    });
+  } catch (err) {
+    console.error("❌ Box products query failed:", err);
+    res.status(500).json({ error: "Box products query failed" });
+  }
+});
+
+app.get("/api/db/dashboard/summary", authenticate, async (req, res) => {
+  try {
+    const manufacturerId = getScopedManufacturerId(req, res);
+    if (!manufacturerId) return;
+
+    const batchId = String(req.query.batchId || "").trim();
+
+    const productWhere = {
+      manufacturerId,
+      ...(batchId ? { batchId } : {})
+    };
+
+    const boxWhere = {
+      manufacturerId,
+      ...(batchId ? { batchId } : {})
+    };
+
+    const [
+      totalProducts,
+      shippedProducts,
+      verifiedProducts,
+      soldProducts,
+      totalBoxes,
+      recentBoxes
+    ] = await Promise.all([
+      prisma.product.count({ where: productWhere }),
+      prisma.product.count({ where: { ...productWhere, shipped: true } }),
+      prisma.product.count({ where: { ...productWhere, verified: true } }),
+      prisma.product.count({ where: { ...productWhere, sold: true } }),
+      prisma.box.count({ where: boxWhere }),
+      prisma.box.findMany({
+        where: boxWhere,
+        select: {
+          boxId: true,
+          batchId: true,
+          createdAt: true,
+          _count: {
+            select: { products: true }
+          }
+        },
+        orderBy: { createdAt: "desc" },
+        take: 10
+      })
+    ]);
+
+    return res.json({
+      manufacturerId,
+      batchId: batchId || null,
+      summary: {
+        totalBoxes,
+        totalProducts,
+        shippedProducts,
+        verifiedProducts,
+        soldProducts,
+        pendingProducts: totalProducts - soldProducts
+      },
+      recentBoxes
+    });
+  } catch (err) {
+    console.error("❌ Dashboard summary query failed:", err);
+    res.status(500).json({ error: "Dashboard summary query failed" });
+  }
+});
+
+app.post("/api/db/box/:boxId/ship", authenticate, async (req, res) => {
+  try {
+    const manufacturerId = req.user.userId;
+    const boxId = String(req.params.boxId || "").trim();
+
+    if (!boxId) {
+      return res.status(400).json({ error: "boxId is required" });
+    }
+
+    const box = await prisma.box.findUnique({
+      where: {
+        manufacturerId_boxId: {
+          manufacturerId,
+          boxId
+        }
+      }
+    });
+
+    if (!box) {
+      return res.status(404).json({ error: "Box not found" });
+    }
+
+    await prisma.product.updateMany({
+      where: {
+        manufacturerId,
+        boxId: box.id,
+        shipped: false
+      },
+      data: {
+        shipped: true
+      }
+    });
+
+    await prisma.product.updateMany({
+      where: {
+        manufacturerId,
+        boxId: box.id,
+        sold: false,
+        verified: false,
+        lifecycle: "CREATED"
+      },
+      data: {
+        lifecycle: "SHIPPED"
+      }
+    });
+
+    const shippedCount = await prisma.product.count({
+      where: {
+        manufacturerId,
+        boxId: box.id,
+        shipped: true
+      }
+    });
+
+    return res.json({
+      boxId,
+      shippedCount
+    });
+  } catch (err) {
+    console.error("❌ Box ship sync failed:", err);
+    res.status(500).json({ error: "Box ship sync failed" });
+  }
+});
 /* ================= BLOCKCHAIN SETUP ================= */
 
 const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
@@ -139,10 +334,12 @@ app.post("/prepare-batch", authenticate, async (req, res) => {
 
     /* ================= CHECK BOX ================= */
 
-    const existingBox = await prisma.box.findFirst({
+    const existingBox = await prisma.box.findUnique({
       where: {
-        boxId: batch.boxId,
-        manufacturerId
+        manufacturerId_boxId: {
+          manufacturerId,
+          boxId: batch.boxId
+        }
       }
     });
 
@@ -154,7 +351,7 @@ app.post("/prepare-batch", authenticate, async (req, res) => {
 
     /* ================= CREATE BOX (ONLY ONCE) ================= */
 
-    await prisma.box.create({
+    const createdBox = await prisma.box.create({
       data: {
         boxId: batch.boxId,
         batchId: batch.batchId,
@@ -172,10 +369,12 @@ app.post("/prepare-batch", authenticate, async (req, res) => {
       const productId = `P${startNum + i}`;
       const serialNumber = `${batch.batchId}-SN-${i + 1}`;
 
-      const existingProduct = await prisma.productSecret.findFirst({
+      const existingProduct = await prisma.product.findUnique({
         where: {
-          productId,
-          manufacturerId
+          manufacturerId_productId: {
+            manufacturerId,
+            productId
+          }
         }
       });
 
@@ -190,11 +389,13 @@ app.post("/prepare-batch", authenticate, async (req, res) => {
         .update(batchSecret + productId)
         .digest("hex");
 
-      await prisma.productSecret.create({
+      await prisma.product.create({
         data: {
           productId,
-          secret: productSecret,
-          manufacturerId
+          nfcSecret: productSecret,
+          manufacturerId,
+          boxId: createdBox.id,
+          batchId: batch.batchId
         }
       });
 

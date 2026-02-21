@@ -93,6 +93,21 @@ export const shipBox = async (boxId) => {
   const contract = await getContract();
   const tx = await contract.shipBox(boxId);
   await tx.wait();
+
+  const token = localStorage.getItem("token");
+  const syncRes = await fetch(`http://localhost:5000/api/db/box/${encodeURIComponent(boxId)}/ship`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    }
+  });
+
+  if (!syncRes.ok) {
+    const err = await syncRes.json().catch(() => ({}));
+    throw new Error(err.error || "DB ship sync failed");
+  }
+
   console.log("📦 Box shipped:", boxId);
 };
 

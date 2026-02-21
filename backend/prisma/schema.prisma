@@ -13,27 +13,32 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserRole {
+  ADMIN
+  MANUFACTURER
+  RETAILER
+  USER
+}
+
+enum ProductLifecycleStatus {
+  CREATED
+  SHIPPED
+  VERIFIED
+  SOLD
+}
+
 model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique
   password  String
-  role      String
+  role      UserRole @default(USER)
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  products ProductSecret[] // relation
-  boxes     Box[]  
-}
+  products Product[]
+  boxes    Box[]
 
-model ProductSecret {
-  id             Int      @id @default(autoincrement())
-  productId      String
-  manufacturerId Int
-  secret         String
-  createdAt      DateTime @default(now())
-
-  manufacturer User @relation(fields: [manufacturerId], references: [id])
-
-  @@unique([productId, manufacturerId])
+  @@index([role])
 }
 
 model Box {
@@ -42,9 +47,38 @@ model Box {
   manufacturerId Int
   batchId        String
   createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  manufacturer   User     @relation(fields: [manufacturerId], references: [id])
+  manufacturer User @relation(fields: [manufacturerId], references: [id])
+  products     Product[]
 
-  @@unique([boxId, manufacturerId])
+  @@unique([manufacturerId, boxId])
+  @@index([manufacturerId, batchId])
+  @@index([boxId])
+  @@index([batchId])
 }
 
+model Product {
+  id             Int                    @id @default(autoincrement())
+  productId      String
+  manufacturerId Int
+  boxId          Int
+  batchId        String
+  nfcSecret      String
+  lifecycle      ProductLifecycleStatus @default(CREATED)
+  shipped        Boolean                @default(false)
+  verified       Boolean                @default(false)
+  sold           Boolean                @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  manufacturer User @relation(fields: [manufacturerId], references: [id])
+  box          Box  @relation(fields: [boxId], references: [id], onDelete: Restrict)
+
+  @@unique([manufacturerId, productId])
+  @@index([productId])
+  @@index([manufacturerId, boxId])
+  @@index([manufacturerId, batchId])
+  @@index([manufacturerId, lifecycle])
+  @@index([manufacturerId, shipped, verified, sold])
+}
