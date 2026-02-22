@@ -46,6 +46,7 @@ model Box {
   boxId          String
   manufacturerId Int
   batchId        String
+  shippingAddress String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

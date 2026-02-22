@@ -459,7 +459,8 @@ app.get("/api/admin/products", authenticate, requireAdmin, async (req, res) => {
           box: {
             select: {
               id: true,
-              boxId: true
+              boxId: true,
+              shippingAddress: true
             }
           }
         },
@@ -562,6 +563,7 @@ app.post("/api/db/box/:boxId/ship", authenticate, async (req, res) => {
     const manufacturerId = await getMutationManufacturerIdResolved(req, res);
     if (!manufacturerId) return;
     const boxId = String(req.params.boxId || "").trim();
+    const shippingAddress = String(req.body?.shippingAddress || "").trim();
 
     if (!boxId) {
       return res.status(400).json({ error: "boxId is required" });
@@ -578,6 +580,20 @@ app.post("/api/db/box/:boxId/ship", authenticate, async (req, res) => {
 
     if (!box) {
       return res.status(404).json({ error: "Box not found" });
+    }
+
+    if (shippingAddress) {
+      await prisma.box.update({
+        where: {
+          manufacturerId_boxId: {
+            manufacturerId,
+            boxId
+          }
+        },
+        data: {
+          shippingAddress
+        }
+      });
     }
 
     await prisma.product.updateMany({

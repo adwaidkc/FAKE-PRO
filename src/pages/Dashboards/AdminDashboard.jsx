@@ -447,6 +447,7 @@ const AdminDashboard = () => {
                   <th>Product</th>
                   <th>Manufacturer</th>
                   <th>Box</th>
+                  <th>Shipping Address</th>
                   <th>Batch</th>
                   <th>Lifecycle</th>
                   <th>Shipped</th>
@@ -462,6 +463,7 @@ const AdminDashboard = () => {
                     <td>{p.productId}</td>
                     <td>{p.manufacturer?.email || "-"}</td>
                     <td>{p.box?.boxId || "-"}</td>
+                    <td>{p.box?.shippingAddress || "-"}</td>
                     <td>{p.batchId}</td>
                     <td><span className="lifecycle-pill">{p.lifecycle}</span></td>
                     <td>{p.shipped ? "Yes" : "No"}</td>
@@ -500,7 +502,7 @@ const AdminDashboard = () => {
                 ))}
                 {products.length === 0 && (
                   <tr>
-                    <td colSpan={10} className="admin-empty-row">
+                    <td colSpan={11} className="admin-empty-row">
                       No products found for current filters.
                     </td>
                   </tr>

@@ -50,6 +50,7 @@ const ManufacturerDashboard = () => {
   const [batchCreated, setBatchCreated] = useState(false);
 
   const [boxId, setBoxId] = useState("");
+  const [shippingAddress, setShippingAddress] = useState("");
   const [boxProducts, setBoxProducts] = useState([]);
 
   const [searchProductId, setSearchProductId] = useState("");
@@ -127,9 +128,13 @@ Products created: P${start} → P${end}`
     setStatus("❌ Connect wallet first before shipping.");
     return;
   }
+  if (!shippingAddress.trim()) {
+    setStatus("⚠ Shipping address is required before shipping.");
+    return;
+  }
   try {
     setStatus("⏳ Shipping box...");
-    await shipBox(boxId); // ✅ ONE transaction
+    await shipBox(boxId, null, shippingAddress); // ✅ ONE transaction
     setStatus("✅ Box shipped successfully");
   } catch (err) {
     console.error(err);
@@ -285,6 +290,14 @@ Products created: P${start} → P${end}`
                 placeholder="Enter Box ID"
                 value={boxId}
                 onChange={e => setBoxId(e.target.value)}
+              />
+            </div>
+            <div className="form-group">
+              <label>Shipping Address</label>
+              <input
+                placeholder="Enter shipping address"
+                value={shippingAddress}
+                onChange={e => setShippingAddress(e.target.value)}
               />
             </div>
           </div>
