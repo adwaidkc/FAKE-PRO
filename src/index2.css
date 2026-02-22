@@ -697,6 +697,39 @@ textarea {
   margin-top: 18px;
 }
 
+.status-banner {
+  margin-top: 15px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.status-success {
+  background: #103022;
+  color: #8cf3be;
+  border-color: #2b8d5f;
+}
+
+.status-info {
+  background: #10263f;
+  color: #9dd6ff;
+  border-color: #2a6aa5;
+}
+
+.status-warning {
+  background: #322611;
+  color: #ffd88f;
+  border-color: #a26e20;
+}
+
+.status-error {
+  background: #3a1717;
+  color: #ffb1b1;
+  border-color: #b14a4a;
+}
+
 @media (max-width: 900px) {
   .admin-dashboard-shell {
     width: calc(100vw - 16px);

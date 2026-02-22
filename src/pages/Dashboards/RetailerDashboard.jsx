@@ -39,6 +39,16 @@ const RetailerDashboard = () => {
   const [scanResult, setScanResult] = useState(null); // { ok, message, product }
   const [isVerifyingSeal, setIsVerifyingSeal] = useState(false);
 
+  const getStatusTone = (message) => {
+    const text = String(message || "").toLowerCase();
+    if (!text) return "info";
+    if (text.includes("❌") || text.includes("failed") || text.includes("error") || text.includes("not found") || text.includes("mismatch")) return "error";
+    if (text.includes("⚠") || text.includes("required") || text.includes("cannot")) return "warning";
+    if (text.includes("⏳") || text.includes("checking") || text.includes("marking") || text.includes("verifying")) return "info";
+    if (text.includes("✅") || text.includes("connected") || text.includes("valid") || text.includes("found")) return "success";
+    return "info";
+  };
+
   // Helper: connect wallet
   const handleConnect = async () => {
     try {
@@ -450,16 +460,7 @@ const RetailerDashboard = () => {
       {/* Status / error box */}
       {status && (
         <div style={{ marginTop: 8 }}>
-          <div
-            className="login-error"
-            style={{
-              background: "#071218",
-              color: "#ffdede",
-              padding: 10,
-              borderRadius: 6,
-              marginBottom: 0
-            }}
-          >
+          <div className={`status-banner status-${getStatusTone(status)}`} style={{ marginBottom: 0 }}>
             {status}
           </div>
         </div>

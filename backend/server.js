@@ -24,8 +24,31 @@ const __dirname = path.dirname(__filename);
 
 /* ================= LOAD ABI ================= */
 
-const abiPath = path.join(__dirname, "abi.json");
-const abi = JSON.parse(fs.readFileSync(abiPath, "utf-8"));
+const resolveContractAbi = () => {
+  const candidates = [
+    path.join(__dirname, "..", "artifacts", "contracts", "TrustChain.sol", "TrustChain.json"),
+    path.join(__dirname, "..", "src", "TrustChainAbi.json"),
+    path.join(__dirname, "abi.json")
+  ];
+
+  for (const candidate of candidates) {
+    if (!fs.existsSync(candidate)) continue;
+    try {
+      const parsed = JSON.parse(fs.readFileSync(candidate, "utf-8"));
+      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed.abi)) return parsed.abi;
+    } catch (err) {
+      console.warn("⚠️ Failed to parse ABI candidate:", candidate, err.message);
+    }
+  }
+
+  throw new Error("Unable to load contract ABI from known paths");
+};
+
+const abi = resolveContractAbi();
+const registerBatchInterface = new ethers.Interface([
+  "function registerBatchProducts(string batchNumber,string boxId,(string productId,string boxId,string name,string category,string manufacturer,string manufacturerDate,string manufacturePlace,string modelNumber,string serialNumber,string warrantyPeriod,string batchNumber,string color,string specs,uint256 price,string image)[] items)"
+]);
 
 /* ================= APP SETUP ================= */
 
@@ -59,18 +82,71 @@ function getScopedManufacturerId(req, res) {
   return parsed;
 }
 
-function getMutationManufacturerId(req, res) {
-  if (req.user.role !== "ADMIN") return req.user.userId;
+async function getMutationManufacturerIdResolved(req, res) {
+  if (req.user.role === "MANUFACTURER") return req.user.userId;
 
   const raw = req.body?.manufacturerId ?? req.query.manufacturerId;
   const parsed = Number.parseInt(String(raw || ""), 10);
+  if (!Number.isNaN(parsed) && parsed > 0) return parsed;
 
-  if (Number.isNaN(parsed) || parsed <= 0) {
+  if (req.user.role === "ADMIN") {
     res.status(400).json({ error: "manufacturerId is required for admin actions" });
     return null;
   }
 
-  return parsed;
+  const boxId = String(req.params?.boxId || "").trim();
+  if (boxId) {
+    const matches = await prisma.box.findMany({
+      where: { boxId },
+      select: { manufacturerId: true },
+      distinct: ["manufacturerId"],
+      take: 2
+    });
+
+    if (matches.length === 1) return matches[0].manufacturerId;
+    if (matches.length > 1) {
+      res.status(409).json({ error: "Multiple manufacturers found for this boxId; provide manufacturerId" });
+      return null;
+    }
+  }
+
+  const productId = String(req.params?.productId || "").trim();
+  if (productId) {
+    const matches = await prisma.product.findMany({
+      where: { productId },
+      select: { manufacturerId: true },
+      distinct: ["manufacturerId"],
+      take: 2
+    });
+
+    if (matches.length === 1) return matches[0].manufacturerId;
+    if (matches.length > 1) {
+      res.status(409).json({ error: "Multiple manufacturers found for this productId; provide manufacturerId" });
+      return null;
+    }
+  }
+
+  res.status(404).json({ error: "Manufacturer mapping not found for this request" });
+  return null;
+}
+
+async function normalizeLifecycle(whereBase) {
+  await prisma.product.updateMany({
+    where: { ...whereBase, sold: true },
+    data: { lifecycle: "SOLD" }
+  });
+  await prisma.product.updateMany({
+    where: { ...whereBase, sold: false, verified: true },
+    data: { lifecycle: "VERIFIED" }
+  });
+  await prisma.product.updateMany({
+    where: { ...whereBase, sold: false, verified: false, shipped: true },
+    data: { lifecycle: "SHIPPED" }
+  });
+  await prisma.product.updateMany({
+    where: { ...whereBase, sold: false, verified: false, shipped: false },
+    data: { lifecycle: "CREATED" }
+  });
 }
 
 app.get("/api/db/box/:boxId/products", authenticate, async (req, res) => {
@@ -121,6 +197,68 @@ app.get("/api/db/box/:boxId/products", authenticate, async (req, res) => {
   } catch (err) {
     console.error("❌ Box products query failed:", err);
     res.status(500).json({ error: "Box products query failed" });
+  }
+});
+
+app.get("/api/db/resolve/box/:boxId", authenticate, async (req, res) => {
+  try {
+    const boxId = String(req.params.boxId || "").trim();
+    if (!boxId) {
+      return res.status(400).json({ error: "boxId is required" });
+    }
+
+    const matches = await prisma.box.findMany({
+      where: { boxId },
+      select: { manufacturerId: true },
+      distinct: ["manufacturerId"],
+      take: 20
+    });
+
+    if (matches.length === 0) {
+      return res.status(404).json({ error: "Box not found" });
+    }
+    if (matches.length > 1) {
+      return res.status(409).json({
+        error: "Multiple manufacturers found for this boxId; provide manufacturerId",
+        manufacturerIds: matches.map((m) => m.manufacturerId)
+      });
+    }
+
+    return res.json({ manufacturerId: matches[0].manufacturerId });
+  } catch (err) {
+    console.error("❌ Box manufacturer resolve failed:", err);
+    res.status(500).json({ error: "Box manufacturer resolve failed" });
+  }
+});
+
+app.get("/api/db/resolve/product/:productId", authenticate, async (req, res) => {
+  try {
+    const productId = String(req.params.productId || "").trim();
+    if (!productId) {
+      return res.status(400).json({ error: "productId is required" });
+    }
+
+    const matches = await prisma.product.findMany({
+      where: { productId },
+      select: { manufacturerId: true },
+      distinct: ["manufacturerId"],
+      take: 20
+    });
+
+    if (matches.length === 0) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+    if (matches.length > 1) {
+      return res.status(409).json({
+        error: "Multiple manufacturers found for this productId; provide manufacturerId",
+        manufacturerIds: matches.map((m) => m.manufacturerId)
+      });
+    }
+
+    return res.json({ manufacturerId: matches[0].manufacturerId });
+  } catch (err) {
+    console.error("❌ Product manufacturer resolve failed:", err);
+    res.status(500).json({ error: "Product manufacturer resolve failed" });
   }
 });
 
@@ -331,11 +469,23 @@ app.get("/api/admin/products", authenticate, requireAdmin, async (req, res) => {
       })
     ]);
 
+    const productsWithDerivedLifecycle = products.map((p) => {
+      let lifecycle = "CREATED";
+      if (p.sold) lifecycle = "SOLD";
+      else if (p.verified) lifecycle = "VERIFIED";
+      else if (p.shipped) lifecycle = "SHIPPED";
+
+      return {
+        ...p,
+        lifecycle
+      };
+    });
+
     return res.json({
       page,
       pageSize,
       total,
-      products
+      products: productsWithDerivedLifecycle
     });
   } catch (err) {
     console.error("❌ Admin products query failed:", err);
@@ -409,7 +559,7 @@ app.get("/api/db/dashboard/summary", authenticate, async (req, res) => {
 
 app.post("/api/db/box/:boxId/ship", authenticate, async (req, res) => {
   try {
-    const manufacturerId = getMutationManufacturerId(req, res);
+    const manufacturerId = await getMutationManufacturerIdResolved(req, res);
     if (!manufacturerId) return;
     const boxId = String(req.params.boxId || "").trim();
 
@@ -441,18 +591,7 @@ app.post("/api/db/box/:boxId/ship", authenticate, async (req, res) => {
       }
     });
 
-    await prisma.product.updateMany({
-      where: {
-        manufacturerId,
-        boxId: box.id,
-        sold: false,
-        verified: false,
-        lifecycle: "CREATED"
-      },
-      data: {
-        lifecycle: "SHIPPED"
-      }
-    });
+    await normalizeLifecycle({ manufacturerId, boxId: box.id });
 
     const shippedCount = await prisma.product.count({
       where: {
@@ -474,7 +613,7 @@ app.post("/api/db/box/:boxId/ship", authenticate, async (req, res) => {
 
 app.post("/api/db/box/:boxId/verify", authenticate, async (req, res) => {
   try {
-    const manufacturerId = getMutationManufacturerId(req, res);
+    const manufacturerId = await getMutationManufacturerIdResolved(req, res);
     if (!manufacturerId) return;
 
     const boxId = String(req.params.boxId || "").trim();
@@ -502,10 +641,11 @@ app.post("/api/db/box/:boxId/verify", authenticate, async (req, res) => {
         sold: false
       },
       data: {
-        verified: true,
-        lifecycle: "VERIFIED"
+        verified: true
       }
     });
+
+    await normalizeLifecycle({ manufacturerId, boxId: box.id });
 
     const verifiedCount = await prisma.product.count({
       where: {
@@ -522,9 +662,61 @@ app.post("/api/db/box/:boxId/verify", authenticate, async (req, res) => {
   }
 });
 
+app.post("/api/db/box/:boxId/sold", authenticate, async (req, res) => {
+  try {
+    const manufacturerId = await getMutationManufacturerIdResolved(req, res);
+    if (!manufacturerId) return;
+
+    const boxId = String(req.params.boxId || "").trim();
+    if (!boxId) {
+      return res.status(400).json({ error: "boxId is required" });
+    }
+
+    const box = await prisma.box.findUnique({
+      where: {
+        manufacturerId_boxId: {
+          manufacturerId,
+          boxId
+        }
+      }
+    });
+
+    if (!box) {
+      return res.status(404).json({ error: "Box not found" });
+    }
+
+    await prisma.product.updateMany({
+      where: {
+        manufacturerId,
+        boxId: box.id
+      },
+      data: {
+        sold: true,
+        verified: true,
+        shipped: true
+      }
+    });
+
+    await normalizeLifecycle({ manufacturerId, boxId: box.id });
+
+    const soldCount = await prisma.product.count({
+      where: {
+        manufacturerId,
+        boxId: box.id,
+        sold: true
+      }
+    });
+
+    return res.json({ boxId, soldCount });
+  } catch (err) {
+    console.error("❌ Box sold sync failed:", err);
+    res.status(500).json({ error: "Box sold sync failed" });
+  }
+});
+
 app.post("/api/db/product/:productId/verify", authenticate, async (req, res) => {
   try {
-    const manufacturerId = getMutationManufacturerId(req, res);
+    const manufacturerId = await getMutationManufacturerIdResolved(req, res);
     if (!manufacturerId) return;
 
     const productId = String(req.params.productId || "").trim();
@@ -539,14 +731,15 @@ app.post("/api/db/product/:productId/verify", authenticate, async (req, res) => 
         sold: false
       },
       data: {
-        verified: true,
-        lifecycle: "VERIFIED"
+        verified: true
       }
     });
 
     if (updated.count === 0) {
       return res.status(404).json({ error: "Product not found" });
     }
+
+    await normalizeLifecycle({ manufacturerId, productId });
 
     return res.json({ productId, updated: true });
   } catch (err) {
@@ -557,7 +750,7 @@ app.post("/api/db/product/:productId/verify", authenticate, async (req, res) => 
 
 app.post("/api/db/product/:productId/sold", authenticate, async (req, res) => {
   try {
-    const manufacturerId = getMutationManufacturerId(req, res);
+    const manufacturerId = await getMutationManufacturerIdResolved(req, res);
     if (!manufacturerId) return;
 
     const productId = String(req.params.productId || "").trim();
@@ -571,14 +764,15 @@ app.post("/api/db/product/:productId/sold", authenticate, async (req, res) => {
         productId
       },
       data: {
-        sold: true,
-        lifecycle: "SOLD"
+        sold: true
       }
     });
 
     if (updated.count === 0) {
       return res.status(404).json({ error: "Product not found" });
     }
+
+    await normalizeLifecycle({ manufacturerId, productId });
 
     return res.json({ productId, updated: true });
   } catch (err) {
@@ -604,6 +798,38 @@ const activeChallenges = new Map();
 
 function generateChallenge() {
   return crypto.randomBytes(8).toString("hex");
+}
+
+const DRAFT_TTL_MS = 15 * 60 * 1000;
+const DRAFT_SECRET = process.env.JWT_SECRET || process.env.PRIVATE_KEY || "draft-secret";
+
+function encodeBase64Url(value) {
+  return Buffer.from(value, "utf8").toString("base64url");
+}
+
+function decodeBase64Url(value) {
+  return Buffer.from(value, "base64url").toString("utf8");
+}
+
+function signDraft(payloadObj) {
+  const payload = encodeBase64Url(JSON.stringify(payloadObj));
+  const signature = crypto.createHmac("sha256", DRAFT_SECRET).update(payload).digest("hex");
+  return `${payload}.${signature}`;
+}
+
+function verifyDraft(token) {
+  const parts = String(token || "").split(".");
+  if (parts.length !== 2) return null;
+  const [payload, signature] = parts;
+  const expected = crypto.createHmac("sha256", DRAFT_SECRET).update(payload).digest("hex");
+
+  if (signature !== expected) return null;
+
+  try {
+    return JSON.parse(decodeBase64Url(payload));
+  } catch {
+    return null;
+  }
 }
 
 /* =====================================================
@@ -682,82 +908,59 @@ app.post("/prepare-batch", authenticate, async (req, res) => {
   try {
     const batch = req.body;
     const manufacturerId = req.user.userId;
+    if (req.user.role !== "MANUFACTURER") {
+      return res.status(403).json({ error: "Manufacturer access required" });
+    }
 
-    const startNum = parseInt(
-      batch.startProductId.replace(/\D/g, ""),
-      10
-    );
+    const batchId = String(batch.batchId || "").trim();
+    const boxId = String(batch.boxId || "").trim();
+    const batchSize = Number.parseInt(String(batch.batchSize || "0"), 10);
+    const startRaw = String(batch.startProductId || "").trim();
+    const startNum = Number.parseInt(startRaw.replace(/\D/g, ""), 10);
 
-    /* ================= CHECK BOX ================= */
+    if (!batchId || !boxId || !startRaw || Number.isNaN(startNum) || startNum <= 0 || Number.isNaN(batchSize) || batchSize <= 0) {
+      return res.status(400).json({ error: "Invalid batch payload" });
+    }
 
     const existingBox = await prisma.box.findUnique({
       where: {
         manufacturerId_boxId: {
           manufacturerId,
-          boxId: batch.boxId
+          boxId
         }
       }
     });
 
     if (existingBox) {
       return res.status(400).json({
-        error: `Box ${batch.boxId} already exists`
+        error: `Box ${boxId} already exists`
       });
     }
 
-    /* ================= CREATE BOX (ONLY ONCE) ================= */
-
-    const createdBox = await prisma.box.create({
-      data: {
-        boxId: batch.boxId,
-        batchId: batch.batchId,
-        manufacturerId
-      }
-    });
-
     const batchSecret = crypto.randomBytes(32).toString("hex");
-
     const items = [];
+    const productRows = [];
+    const candidateProductIds = [];
 
-    /* ================= CREATE PRODUCTS ================= */
-
-    for (let i = 0; i < batch.batchSize; i++) {
+    for (let i = 0; i < batchSize; i++) {
       const productId = `P${startNum + i}`;
-      const serialNumber = `${batch.batchId}-SN-${i + 1}`;
-
-      const existingProduct = await prisma.product.findUnique({
-        where: {
-          manufacturerId_productId: {
-            manufacturerId,
-            productId
-          }
-        }
-      });
-
-      if (existingProduct) {
-        return res.status(400).json({
-          error: `Product ${productId} already exists`
-        });
-      }
+      const serialNumber = `${batchId}-SN-${i + 1}`;
+      candidateProductIds.push(productId);
 
       const productSecret = crypto
         .createHash("sha256")
         .update(batchSecret + productId)
         .digest("hex");
 
-      await prisma.product.create({
-        data: {
-          productId,
-          nfcSecret: productSecret,
-          manufacturerId,
-          boxId: createdBox.id,
-          batchId: batch.batchId
-        }
+      productRows.push({
+        productId,
+        nfcSecret: productSecret,
+        batchId
       });
 
       items.push({
         productId,
-        boxId: batch.boxId,
+        boxId,
         name: batch.name,
         category: batch.category,
         manufacturer: batch.manufacturer,
@@ -766,19 +969,189 @@ app.post("/prepare-batch", authenticate, async (req, res) => {
         modelNumber: batch.modelNumber,
         serialNumber,
         warrantyPeriod: batch.warrantyPeriod,
-        batchNumber: batch.batchId,
+        batchNumber: batchId,
         color: batch.color,
-        specs: JSON.stringify({ batch: batch.batchId }),
+        specs: JSON.stringify({ batch: batchId }),
         price: batch.price,
         image: batch.image
       });
     }
 
-    res.json({ items });
+    const existingProducts = await prisma.product.findMany({
+      where: {
+        manufacturerId,
+        productId: {
+          in: candidateProductIds
+        }
+      },
+      select: {
+        productId: true
+      }
+    });
+
+    if (existingProducts.length > 0) {
+      return res.status(400).json({
+        error: `Product ${existingProducts[0].productId} already exists`
+      });
+    }
+
+    const draftPayload = {
+      manufacturerId,
+      createdAt: Date.now(),
+      batch: {
+        batchId,
+        boxId,
+        batchSize,
+        startProductId: startRaw
+      },
+      items,
+      productRows
+    };
+    const draftToken = signDraft(draftPayload);
+
+    return res.json({
+      draftToken,
+      batchId,
+      boxId,
+      items
+    });
 
   } catch (err) {
     console.error("❌ Batch preparation failed:", err);
     res.status(500).json({ error: "Batch preparation failed" });
+  }
+});
+
+app.post("/finalize-batch", authenticate, async (req, res) => {
+  try {
+    if (req.user.role !== "MANUFACTURER") {
+      return res.status(403).json({ error: "Manufacturer access required" });
+    }
+
+    const manufacturerId = req.user.userId;
+    const draftToken = String(req.body?.draftToken || "").trim();
+    const txHash = String(req.body?.txHash || "").trim();
+
+    if (!draftToken || !txHash) {
+      return res.status(400).json({ error: "draftToken and txHash are required" });
+    }
+    if (!/^0x[a-fA-F0-9]{64}$/.test(txHash)) {
+      return res.status(400).json({ error: "Invalid txHash format" });
+    }
+
+    const draft = verifyDraft(draftToken);
+    if (!draft) {
+      return res.status(400).json({ error: "Invalid draft token" });
+    }
+    if (draft.manufacturerId !== manufacturerId) {
+      return res.status(403).json({ error: "Draft does not belong to this manufacturer" });
+    }
+    if (!draft.createdAt || (Date.now() - Number(draft.createdAt)) > DRAFT_TTL_MS) {
+      return res.status(400).json({ error: "Draft expired. Prepare batch again." });
+    }
+
+    const [tx, receipt] = await Promise.all([
+      provider.getTransaction(txHash),
+      provider.getTransactionReceipt(txHash)
+    ]);
+
+    if (!tx || !receipt) {
+      return res.status(400).json({ error: "Transaction not found or not mined yet" });
+    }
+    if (receipt.status !== 1) {
+      return res.status(400).json({ error: "Transaction reverted on-chain" });
+    }
+    if (!tx.to || tx.to.toLowerCase() !== String(process.env.CONTRACT_ADDRESS).toLowerCase()) {
+      return res.status(400).json({ error: "Transaction target contract mismatch" });
+    }
+
+    let parsed;
+    try {
+      parsed = registerBatchInterface.parseTransaction({
+        data: tx.data,
+        value: tx.value
+      });
+    } catch {
+      const selector = String(tx.data || "").slice(0, 10);
+      return res.status(400).json({ error: `Unexpected transaction method selector ${selector}` });
+    }
+
+    const [txBatchId, txBoxId, txItems] = parsed.args;
+    if (String(txBatchId) !== String(draft.batch.batchId) || String(txBoxId) !== String(draft.batch.boxId)) {
+      return res.status(400).json({ error: "Transaction batch details do not match prepared draft" });
+    }
+    if (!Array.isArray(txItems) || txItems.length !== draft.items.length) {
+      return res.status(400).json({ error: "Transaction item count mismatch" });
+    }
+
+    for (let i = 0; i < draft.items.length; i++) {
+      const expected = draft.items[i];
+      const actual = txItems[i];
+      if (
+        String(actual.productId) !== String(expected.productId) ||
+        String(actual.boxId) !== String(expected.boxId) ||
+        String(actual.batchNumber) !== String(expected.batchNumber) ||
+        String(actual.serialNumber) !== String(expected.serialNumber) ||
+        String(actual.price) !== String(expected.price)
+      ) {
+        return res.status(400).json({ error: "Transaction payload does not match prepared draft" });
+      }
+    }
+
+    const existingBox = await prisma.box.findUnique({
+      where: {
+        manufacturerId_boxId: {
+          manufacturerId,
+          boxId: draft.batch.boxId
+        }
+      },
+      select: {
+        id: true
+      }
+    });
+
+    if (existingBox) {
+      const existingCount = await prisma.product.count({
+        where: {
+          manufacturerId,
+          box: {
+            boxId: draft.batch.boxId
+          },
+          productId: {
+            in: draft.productRows.map((p) => p.productId)
+          }
+        }
+      });
+      if (existingCount === draft.productRows.length) {
+        return res.json({ finalized: true, alreadyFinalized: true, txHash });
+      }
+      return res.status(409).json({ error: "Box already exists with inconsistent data" });
+    }
+
+    await prisma.$transaction(async (txClient) => {
+      const createdBox = await txClient.box.create({
+        data: {
+          boxId: draft.batch.boxId,
+          batchId: draft.batch.batchId,
+          manufacturerId
+        }
+      });
+
+      await txClient.product.createMany({
+        data: draft.productRows.map((row) => ({
+          productId: row.productId,
+          nfcSecret: row.nfcSecret,
+          manufacturerId,
+          boxId: createdBox.id,
+          batchId: row.batchId
+        }))
+      });
+    });
+
+    return res.json({ finalized: true, txHash });
+  } catch (err) {
+    console.error("❌ Batch finalization failed:", err);
+    res.status(500).json({ error: "Batch finalization failed" });
   }
 });
 

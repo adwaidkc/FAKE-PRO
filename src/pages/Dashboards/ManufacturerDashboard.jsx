@@ -31,6 +31,16 @@ const defaultBatch = {
   image: "/mob.jpg"
 };
 
+const getStatusTone = (message) => {
+  const text = String(message || "").toLowerCase();
+  if (!text) return "info";
+  if (text.includes("❌") || text.includes("failed") || text.includes("error") || text.includes("not found")) return "error";
+  if (text.includes("⚠") || text.includes("required") || text.includes("mismatch")) return "warning";
+  if (text.includes("⏳") || text.includes("loading") || text.includes("fetching") || text.includes("registering")) return "info";
+  if (text.includes("✅") || text.includes("connected") || text.includes("success")) return "success";
+  return "info";
+};
+
 const ManufacturerDashboard = () => {
   const [batch, setBatch] = useState(defaultBatch);
   const [status, setStatus] = useState("");
@@ -260,7 +270,7 @@ Products created: P${start} → P${end}`
             Create & Register Batch
           </button>
 
-          {status && <div className="login-error">{status}</div>}
+          {status && <div className={`status-banner status-${getStatusTone(status)}`}>{status}</div>}
         </div>
       )}
 
@@ -290,7 +300,7 @@ Products created: P${start} → P${end}`
               </button>
             </div>
           )}
-          {status && <div className="login-error">{status}</div>}
+          {status && <div className={`status-banner status-${getStatusTone(status)}`}>{status}</div>}
         </div>
       )}
 
@@ -329,7 +339,7 @@ Products created: P${start} → P${end}`
               <p style={{ margin: 0 }}>Shipped: {fetchedProduct.shipped ? "Yes" : "No"}</p>
             </div>
           )}
-          {status && <div className="login-error">{status}</div>}
+          {status && <div className={`status-banner status-${getStatusTone(status)}`}>{status}</div>}
         </div>
       )}
     </div>

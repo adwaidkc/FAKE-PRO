@@ -194,6 +194,18 @@ mapping(address => mapping(string => string[])) private productsByBox;
     emit ProductSold(productId);
 }
 
+    function saleBox(string memory _boxId) external {
+    string[] storage ids = productsByBox[msg.sender][_boxId];
+    require(ids.length > 0, "Box not found");
+
+    for (uint i = 0; i < ids.length; i++) {
+        if (!products[msg.sender][ids[i]].sold) {
+            products[msg.sender][ids[i]].sold = true;
+            emit ProductSold(ids[i]);
+        }
+    }
+}
+
 
     /* ================= FETCH ================= */
 

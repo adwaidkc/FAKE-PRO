@@ -510,6 +510,19 @@
           "type": "string"
         }
       ],
+      "name": "saleBox",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "_boxId",
+          "type": "string"
+        }
+      ],
       "name": "shipBox",
       "outputs": [],
       "stateMutability": "nonpayable",

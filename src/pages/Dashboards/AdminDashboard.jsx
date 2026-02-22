@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { connectBlockchain, saleComplete, shipBox, verifyProduct } from "../../trustChain";
+import { connectBlockchain, saleCompleteBox, shipBox, verifyBox } from "../../trustChain";
 import {
   fetchAdminBatches,
   fetchAdminBoxes,
@@ -44,6 +44,16 @@ const Icon = ({ type }) => {
       <path d={iconMap[type] || iconMap.heading} />
     </svg>
   );
+};
+
+const getStatusTone = (message) => {
+  const text = String(message || "").toLowerCase();
+  if (!text) return "info";
+  if (text.includes("❌") || text.includes("failed") || text.includes("error") || text.includes("not found")) return "error";
+  if (text.includes("⚠") || text.includes("required") || text.includes("mismatch")) return "warning";
+  if (text.includes("⏳") || text.includes("loading") || text.includes("verifying")) return "info";
+  if (text.includes("✅") || text.includes("connected") || text.includes("synced") || text.includes("success")) return "success";
+  return "info";
 };
 
 const AdminDashboard = () => {
@@ -184,8 +194,8 @@ const AdminDashboard = () => {
     setActionLoadingKey(key);
     setStatusMessage("");
     try {
-      await verifyProduct(row.productId, row.manufacturerId);
-      setStatusMessage(`Product ${row.productId} verified and DB synced.`);
+      await verifyBox(row.box.boxId, row.manufacturerId);
+      setStatusMessage(`Box ${row.box.boxId} verified and DB synced.`);
       await loadProducts(filters);
       await loadManufacturers();
     } catch (err) {
@@ -204,8 +214,8 @@ const AdminDashboard = () => {
     setActionLoadingKey(key);
     setStatusMessage("");
     try {
-      await saleComplete(row.productId, row.manufacturerId);
-      setStatusMessage(`Product ${row.productId} marked sold and DB synced.`);
+      await saleCompleteBox(row.box.boxId, row.manufacturerId);
+      setStatusMessage(`Box ${row.box.boxId} marked sold and DB synced.`);
       await loadProducts(filters);
       await loadManufacturers();
     } catch (err) {
@@ -522,7 +532,7 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      {statusMessage && <div className="login-error admin-status">{statusMessage}</div>}
+      {statusMessage && <div className={`status-banner status-${getStatusTone(statusMessage)} admin-status`}>{statusMessage}</div>}
     </div>
   );
 };

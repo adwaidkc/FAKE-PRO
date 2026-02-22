@@ -18,6 +18,38 @@ const buildManufacturerQuery = (manufacturerId) => {
   return `?manufacturerId=${encodeURIComponent(manufacturerId)}`;
 };
 
+const resolveManufacturerIdByBox = async (boxId, token) => {
+  const res = await fetch(`http://localhost:5000/api/db/resolve/box/${encodeURIComponent(boxId)}`, {
+    headers: {
+      "Authorization": `Bearer ${token}`
+    }
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Unable to resolve manufacturer from boxId");
+  }
+
+  const data = await res.json();
+  return data.manufacturerId;
+};
+
+const resolveManufacturerIdByProduct = async (productId, token) => {
+  const res = await fetch(`http://localhost:5000/api/db/resolve/product/${encodeURIComponent(productId)}`, {
+    headers: {
+      "Authorization": `Bearer ${token}`
+    }
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Unable to resolve manufacturer from productId");
+  }
+
+  const data = await res.json();
+  return data.manufacturerId;
+};
+
 /* ================= CONTRACT ================= */
 
 const getContract = async () => {
@@ -55,7 +87,7 @@ export const registerBatch = async (batch) => {
     const contract = await getContract();
     const token = localStorage.getItem("token");
 
-    const res = await fetch("http://localhost:5000/prepare-batch", {
+    const prepareRes = await fetch("http://localhost:5000/prepare-batch", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -64,20 +96,40 @@ export const registerBatch = async (batch) => {
       body: JSON.stringify(batch)
     });
 
-    if (!res.ok) {
-      const err = await res.json();
+    if (!prepareRes.ok) {
+      const err = await prepareRes.json();
       return { success: false, message: err.error };
     }
 
-    const { items } = await res.json();
+    const { items, draftToken, batchId, boxId } = await prepareRes.json();
 
     const tx = await contract.registerBatchProducts(
-      batch.batchId,
-      batch.boxId,
+      batchId,
+      boxId,
       items
     );
 
     await tx.wait();
+
+    const finalizeRes = await fetch("http://localhost:5000/finalize-batch", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        draftToken,
+        txHash: tx.hash
+      })
+    });
+
+    if (!finalizeRes.ok) {
+      const err = await finalizeRes.json().catch(() => ({}));
+      return {
+        success: false,
+        message: `${err.error || "DB finalization failed"} (tx: ${tx.hash})`
+      };
+    }
 
     return { success: true };
 
@@ -102,14 +154,15 @@ export const shipBox = async (boxId, manufacturerId = null) => {
   await tx.wait();
 
   const token = localStorage.getItem("token");
-  const query = buildManufacturerQuery(manufacturerId);
+  const resolvedManufacturerId = manufacturerId ?? await resolveManufacturerIdByBox(boxId, token);
+  const query = buildManufacturerQuery(resolvedManufacturerId);
   const syncRes = await fetch(`http://localhost:5000/api/db/box/${encodeURIComponent(boxId)}/ship${query}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${token}`
     },
-    body: manufacturerId ? JSON.stringify({ manufacturerId }) : undefined
+    body: JSON.stringify({ manufacturerId: resolvedManufacturerId })
   });
 
   if (!syncRes.ok) {
@@ -137,14 +190,15 @@ export const verifyBox = async (boxId, manufacturerId = null) => {
   await tx.wait();
 
   const token = localStorage.getItem("token");
-  const query = buildManufacturerQuery(manufacturerId);
+  const resolvedManufacturerId = manufacturerId ?? await resolveManufacturerIdByBox(boxId, token);
+  const query = buildManufacturerQuery(resolvedManufacturerId);
   const syncRes = await fetch(`http://localhost:5000/api/db/box/${encodeURIComponent(boxId)}/verify${query}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${token}`
     },
-    body: manufacturerId ? JSON.stringify({ manufacturerId }) : undefined
+    body: JSON.stringify({ manufacturerId: resolvedManufacturerId })
   });
 
   if (!syncRes.ok) {
@@ -155,20 +209,62 @@ export const verifyBox = async (boxId, manufacturerId = null) => {
   console.log("✅ Box verified by Retailer:", boxId);
 };
 
+export const saleCompleteBox = async (boxId, manufacturerId = null) => {
+  const contract = await getContract();
+  try {
+    const tx = await contract.saleBox(boxId);
+    await tx.wait();
+  } catch (err) {
+    const isMissingMethod =
+      String(err?.message || "").toLowerCase().includes("is not a function") ||
+      String(err?.shortMessage || "").toLowerCase().includes("could not decode result data");
+
+    if (!isMissingMethod) throw err;
+
+    const ids = await contract.getProductsByBox(boxId);
+    if (!ids || ids.length === 0) {
+      throw new Error("Box not found on-chain");
+    }
+
+    for (const productId of ids) {
+      const tx = await contract.saleComplete(String(productId));
+      await tx.wait();
+    }
+  }
+
+  const token = localStorage.getItem("token");
+  const resolvedManufacturerId = manufacturerId ?? await resolveManufacturerIdByBox(boxId, token);
+  const query = buildManufacturerQuery(resolvedManufacturerId);
+  const syncRes = await fetch(`http://localhost:5000/api/db/box/${encodeURIComponent(boxId)}/sold${query}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify({ manufacturerId: resolvedManufacturerId })
+  });
+
+  if (!syncRes.ok) {
+    const err = await syncRes.json().catch(() => ({}));
+    throw new Error(err.error || "DB box sold sync failed");
+  }
+};
+
 export const verifyProduct = async (productId, manufacturerId = null) => {
   const contract = await getContract();
   const tx = await contract.verifyProduct(productId);
   await tx.wait();
 
   const token = localStorage.getItem("token");
-  const query = buildManufacturerQuery(manufacturerId);
+  const resolvedManufacturerId = manufacturerId ?? await resolveManufacturerIdByProduct(productId, token);
+  const query = buildManufacturerQuery(resolvedManufacturerId);
   const syncRes = await fetch(`http://localhost:5000/api/db/product/${encodeURIComponent(productId)}/verify${query}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${token}`
     },
-    body: manufacturerId ? JSON.stringify({ manufacturerId }) : undefined
+    body: JSON.stringify({ manufacturerId: resolvedManufacturerId })
   });
 
   if (!syncRes.ok) {
@@ -187,14 +283,15 @@ export const saleComplete = async (productId, manufacturerId = null) => {
   await tx.wait();
 
   const token = localStorage.getItem("token");
-  const query = buildManufacturerQuery(manufacturerId);
+  const resolvedManufacturerId = manufacturerId ?? await resolveManufacturerIdByProduct(productId, token);
+  const query = buildManufacturerQuery(resolvedManufacturerId);
   const syncRes = await fetch(`http://localhost:5000/api/db/product/${encodeURIComponent(productId)}/sold${query}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${token}`
     },
-    body: manufacturerId ? JSON.stringify({ manufacturerId }) : undefined
+    body: JSON.stringify({ manufacturerId: resolvedManufacturerId })
   });
 
   if (!syncRes.ok) {
