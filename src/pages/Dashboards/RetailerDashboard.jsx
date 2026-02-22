@@ -1,6 +1,5 @@
 // src/pages/Dashboards/RetailerDashboard.js
 import React, { useState } from "react";
-import { ethers } from "ethers";
 import {
   connectBlockchain,
   getProduct,
@@ -35,9 +34,8 @@ const RetailerDashboard = () => {
   const [isVerifyingBox, setIsVerifyingBox] = useState(false);
 
   const [scanProductId, setScanProductId] = useState("");
-  const [scannedCode, setScannedCode] = useState("");
   const [scanResult, setScanResult] = useState(null); // { ok, message, product }
-  const [isVerifyingSeal, setIsVerifyingSeal] = useState(false);
+  const [isVerifyingProduct, setIsVerifyingProduct] = useState(false);
 
   const getStatusTone = (message) => {
     const text = String(message || "").toLowerCase();
@@ -122,84 +120,37 @@ const RetailerDashboard = () => {
     }
   };
 
-  // Compute expected keccak256-based dynamic seal for (productId, seed, window)
-  const computeExpectedSeal = (productId, seed, windowNumber) => {
-    const bytes = ethers.toUtf8Bytes(`${productId}|${seed}|${windowNumber}`);
-    return ethers.keccak256(bytes); // 0x...
-  };
-
-  // Verify scanned code for a product using seed inside product.specs.sealSeed
-  const handleVerifySeal = async () => {
+  // Verify product authenticity by productId only
+  const handleVerifyProduct = async () => {
     setScanResult(null);
     setStatus("");
-    setIsVerifyingSeal(true);
+    setIsVerifyingProduct(true);
 
     try {
       const pid = (scanProductId || "").trim();
       if (!pid) {
         setStatus("Enter Product ID to verify.");
-        setIsVerifyingSeal(false);
+        setIsVerifyingProduct(false);
         return;
       }
       const p = await getProduct(pid);
       if (!p || !p.productId) {
         setStatus("Product not found on chain.");
-        setIsVerifyingSeal(false);
+        setIsVerifyingProduct(false);
         return;
       }
 
-      // seed should be present in specs
-      const seed = p.specs && p.specs.sealSeed ? p.specs.sealSeed : null;
-      if (!seed) {
-        setStatus("No sealSeed present in product specs — cannot verify dynamic seal.");
-        setIsVerifyingSeal(false);
-        return;
-      }
-
-      const provided = (scannedCode || "").trim();
-      if (!provided) {
-        setStatus("Paste the scanned dynamic code (from NFC/QR).");
-        setIsVerifyingSeal(false);
-        return;
-      }
-
-      const normalizedProvided = provided.startsWith("0x") ? provided.toLowerCase() : provided;
-
-      const windowSeconds = 60; // 60s window
-      const nowWindow = Math.floor(Date.now() / (windowSeconds * 1000));
-
-      let matched = false;
-      let matchedWindow = null;
-      for (let offset = -1; offset <= 1; offset++) {
-        const w = nowWindow + offset;
-        const expected = computeExpectedSeal(p.productId, seed, w);
-        if (expected.toLowerCase() === normalizedProvided.toLowerCase()) {
-          matched = true;
-          matchedWindow = w;
-          break;
-        }
-      }
-
-      if (matched) {
-        setScanResult({
-          ok: true,
-          message: `Dynamic seal valid (matched window ${matchedWindow}).`,
-          product: p
-        });
-        setStatus("");
-      } else {
-        setScanResult({
-          ok: false,
-          message: "Scanned code mismatch — seal invalid or out-of-sync.",
-          product: p
-        });
-        setStatus("");
-      }
+      setScanResult({
+        ok: true,
+        message: "Product exists on blockchain and is genuine.",
+        product: p
+      });
+      setStatus("✅ Genuine product found.");
     } catch (e) {
       console.error(e);
-      setStatus("Seal verification failed: " + (e?.message || e));
+      setStatus("Product verification failed: " + (e?.message || e));
     } finally {
-      setIsVerifyingSeal(false);
+      setIsVerifyingProduct(false);
     }
   };
 
@@ -300,7 +251,7 @@ const RetailerDashboard = () => {
         )}
       </section>
       <section style={{ marginBottom: 32 }}>
-        <h3 style={{ color: "#ffffff", marginBottom: 12 }}>Product Authenticity (Inner Seal)</h3>
+        <h3 style={{ color: "#ffffff", marginBottom: 12 }}>Product Authenticity</h3>
         <div className="form-row" style={{ alignItems: "flex-end", gap: 18, marginBottom: 10 }}>
           <div className="form-group" style={{ minWidth: 220 }}>
             <label style={{ fontWeight: 500, marginBottom: 4 }}>Product ID</label>
@@ -312,23 +263,13 @@ const RetailerDashboard = () => {
               style={{ width: 220 }}
             />
           </div>
-          <div className="form-group" style={{ minWidth: 320 }}>
-            <label style={{ fontWeight: 500, marginBottom: 4 }}>Dynamic Code</label>
-            <input
-              className="login-input"
-              placeholder="Paste scanned dynamic code (0x... from NFC/QR)"
-              value={scannedCode}
-              onChange={(e) => setScannedCode(e.target.value)}
-              style={{ width: 320 }}
-            />
-          </div>
           <button
             className="btn-outline"
-            onClick={handleVerifySeal}
-            disabled={isVerifyingSeal}
+            onClick={handleVerifyProduct}
+            disabled={isVerifyingProduct}
             style={{ minWidth: 120 }}
           >
-            {isVerifyingSeal ? "Checking..." : "Verify Seal"}
+            {isVerifyingProduct ? "Verifying..." : "Verify Product"}
           </button>
         </div>
 
@@ -420,23 +361,35 @@ const RetailerDashboard = () => {
                 </div>
               </div>
 
+              <div style={{ marginTop: 10, display: "flex", gap: 12, flexWrap: "wrap" }}>
+                <span className={`status-banner ${scanResult.product?.shipped ? "status-success" : "status-warning"}`} style={{ marginTop: 0, padding: "6px 10px" }}>
+                  Shipped: {scanResult.product?.shipped ? "Yes" : "No"}
+                </span>
+                <span className={`status-banner ${scanResult.product?.verifiedByRetailer ? "status-success" : "status-warning"}`} style={{ marginTop: 0, padding: "6px 10px" }}>
+                  Verified: {scanResult.product?.verifiedByRetailer ? "Yes" : "No"}
+                </span>
+                <span className={`status-banner ${scanResult.product?.sold ? "status-error" : "status-info"}`} style={{ marginTop: 0, padding: "6px 10px" }}>
+                  Sold: {scanResult.product?.sold ? "Yes" : "No"}
+                </span>
+              </div>
+
               <div style={{ marginTop: 14 }}>
-                <label style={{ fontWeight: 600 }}>Seal Check:</label>
+                <label style={{ fontWeight: 600 }}>Authenticity Check:</label>
                 <div style={{ marginTop: 8 }}>
                   {scanResult.ok ? (
                     <div style={{ color: "#2ecc71", fontWeight: 700 }}>
-                      ✔ Authentic — dynamic seal matches
+                      ✔ Genuine Product
                       <div style={{ color: "#a9dcbf", fontWeight: 500 }}>{scanResult.message}</div>
                     </div>
                   ) : (
                     <div style={{ color: "#e74c3c", fontWeight: 700 }}>
-                      ✖ Not authentic — scanned code mismatch
+                      ✖ Not authentic
                       <div style={{ color: "#f2c6c6", fontWeight: 500 }}>{scanResult.message}</div>
                     </div>
                   )}
                 </div>
 
-                {scanResult.ok && (
+                {scanResult.ok && !scanResult.product?.sold && (
                   <div style={{ marginTop: 18 }}>
                     <button
                       className="btn-primary"
@@ -449,6 +402,13 @@ const RetailerDashboard = () => {
                     >
                       Mark as Sold (seal broken)
                     </button>
+                  </div>
+                )}
+                {scanResult.ok && scanResult.product?.sold && (
+                  <div style={{ marginTop: 18 }}>
+                    <span className="status-banner status-success" style={{ marginTop: 0, display: "inline-block" }}>
+                      Product already marked as SOLD.
+                    </span>
                   </div>
                 )}
               </div>

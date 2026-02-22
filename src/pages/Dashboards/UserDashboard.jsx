@@ -11,6 +11,16 @@ const UserDashboard = () => {
   const [scanning, setScanning] = useState(false);
   const [productId, setProductId] = useState(""); // Add productId state
   const searchProductId = productId.trim();
+
+  const getStatusTone = (message) => {
+    const text = String(message || "").toLowerCase();
+    if (!text) return "info";
+    if (text.includes("❌") || text.includes("fake") || text.includes("failed")) return "error";
+    if (text.includes("❗") || text.includes("please")) return "warning";
+    if (text.includes("🔄") || text.includes("📡") || text.includes("🔐")) return "info";
+    if (text.includes("✅") || text.includes("genuine")) return "success";
+    return "info";
+  };
   
 // ---------- Scan NFC & Verify ----------
 const handleScanAndVerify = async () => {
@@ -80,7 +90,7 @@ const handleScanAndVerify = async () => {
           {scanning ? "Scanning NFC..." : "Scan NFC"}
         </button>
 
-        {status && <div className="login-error">{status}</div>}
+        {status && <div className={`status-banner status-${getStatusTone(status)}`}>{status}</div>}
 
         {/* ================= PRODUCT CARD ================= */}
         {product && (
@@ -114,18 +124,25 @@ const handleScanAndVerify = async () => {
             {/* ---------- DETAILS ---------- */}
             <div className="fetched-details" style={{ flex: 1 }}>
               <h3>{product.name}</h3>
+              <div className="status-banner status-success" style={{ marginTop: 8, display: "inline-block" }}>
+                Authenticity: Genuine Product
+              </div>
 
               <div
                 className="details-grid"
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "repeat(2, 1fr)",
+                  gridTemplateColumns: "repeat(2, minmax(220px, 1fr))",
                   gap: "12px",
-                  marginTop: "10px"
+                  marginTop: "12px"
                 }}
               >
                 <div><strong>Product ID:</strong> {product.productId}</div>
                 <div><strong>Manufacturer:</strong> {product.manufacturer}</div>
+                <div><strong>Model Number:</strong> {product.modelNumber || "-"}</div>
+                <div><strong>Batch Number:</strong> {product.batchNumber || "-"}</div>
+                <div><strong>Serial Number:</strong> {product.serialNumber || "-"}</div>
+                <div><strong>Price:</strong> ₹{product.price || "-"}</div>
               </div>
 
               {/* ---------- STATUS ---------- */}
@@ -134,22 +151,19 @@ const handleScanAndVerify = async () => {
                 style={{
                   marginTop: "20px",
                   display: "flex",
-                  gap: "30px",
-                  fontSize: "20px"
+                  gap: "12px",
+                  flexWrap: "wrap"
                 }}
               >
-                <div>
-                  <strong>Shipped:</strong>{" "}
-                  {product.shipped ? "✔️" : "❌"}
-                </div>
-                <div>
-                  <strong>Verified:</strong>{" "}
-                  {product.verifiedByRetailer ? "✔️" : "❌"}
-                </div>
-                <div>
-                  <strong>Sold:</strong>{" "}
-                  {product.sold ? "✔️" : "❌"}
-                </div>
+                <span className={`status-banner ${product.shipped ? "status-success" : "status-warning"}`} style={{ marginTop: 0, padding: "6px 10px" }}>
+                  Shipped: {product.shipped ? "Yes" : "No"}
+                </span>
+                <span className={`status-banner ${product.verifiedByRetailer ? "status-success" : "status-warning"}`} style={{ marginTop: 0, padding: "6px 10px" }}>
+                  Verified: {product.verifiedByRetailer ? "Yes" : "No"}
+                </span>
+                <span className={`status-banner ${product.sold ? "status-error" : "status-info"}`} style={{ marginTop: 0, padding: "6px 10px" }}>
+                  Sold: {product.sold ? "Yes" : "No"}
+                </span>
               </div>
             </div>
           </div>
