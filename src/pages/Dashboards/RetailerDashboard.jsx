@@ -28,6 +28,7 @@ import "../../index2.css";
 
 const RetailerDashboard = () => {
   const [walletConnected, setWalletConnected] = useState(false);
+  const [walletAddress, setWalletAddress] = useState("");
   const [status, setStatus] = useState("");
   const [boxId, setBoxId] = useState("");
   const [boxProducts, setBoxProducts] = useState([]); // minimal info: { productId, name }
@@ -41,12 +42,14 @@ const RetailerDashboard = () => {
   // Helper: connect wallet
   const handleConnect = async () => {
     try {
-      await connectBlockchain();
+      const address = await connectBlockchain();
       setWalletConnected(true);
-      setStatus("");
+      setWalletAddress(address || "");
+      setStatus(`Wallet connected: ${address || "-"}`);
     } catch (e) {
       console.error(e);
       setWalletConnected(false);
+      setWalletAddress("");
       setStatus("Connect failed: " + (e?.message || e));
     }
   };
@@ -86,6 +89,10 @@ const RetailerDashboard = () => {
 
   // Verify all products in the currently loaded box
   const handleVerifyBox = async () => {
+    if (!walletConnected) {
+      setStatus("Connect wallet first before verifying box.");
+      return;
+    }
     if (!boxProducts || boxProducts.length === 0) {
       setStatus("No products loaded for this box. Click Search Box first.");
       return;
@@ -188,6 +195,10 @@ const RetailerDashboard = () => {
 
   // Mark product as sold (calls saleComplete)
   const handleMarkSold = async (productIdToSell) => {
+    if (!walletConnected) {
+      setStatus("Connect wallet first before marking sold.");
+      return;
+    }
     try {
       setStatus("Marking product sold...");
       await saleComplete(productIdToSell);
@@ -220,6 +231,11 @@ const RetailerDashboard = () => {
         >
           {walletConnected ? "Connected" : "Connect Wallet"}
         </button>
+        {walletConnected && (
+          <div style={{ marginTop: 8, color: "#9bd4ff", fontSize: 13 }}>
+            Wallet: {walletAddress ? `${walletAddress.slice(0, 12)}...` : "-"}
+          </div>
+        )}
       </div>
 
       {/* Box section */}

@@ -1,17 +1,19 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { saleComplete, shipBox, verifyProduct } from "../../trustChain";
+import { connectBlockchain, saleComplete, shipBox, verifyProduct } from "../../trustChain";
 import {
   fetchAdminBatches,
+  fetchAdminBoxes,
   fetchAdminManufacturers,
   fetchAdminProducts
 } from "../../services/api";
 import "../../index2.css";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 5;
 
 const defaultFilters = {
   manufacturerId: "",
   batchId: "",
+  boxId: "",
   status: "ALL",
   fromDate: "",
   toDate: "",
@@ -20,15 +22,42 @@ const defaultFilters = {
   page: 1
 };
 
+const Icon = ({ type }) => {
+  const iconMap = {
+    heading: "M3 4h18v2H3V4zm0 7h12v2H3v-2zm0 7h18v2H3v-2z",
+    manufacturer: "M12 12a4 4 0 100-8 4 4 0 000 8zm-7 8a7 7 0 1114 0H5z",
+    products: "M4 5h16v4H4V5zm0 5h10v9H4v-9zm11 2h5v7h-5v-7z",
+    box: "M3 7l9-4 9 4-9 4-9-4zm2 3l7 3v8l-7-3v-8zm14 0l-7 3v8l7-3v-8z",
+    status: "M12 3l8 4v5c0 5-3.4 9.5-8 10-4.6-.5-8-5-8-10V7l8-4zm-1 6v6l5-3-5-3z",
+    filter: "M3 5h18l-7 8v6l-4-2v-4L3 5z",
+    calendar: "M7 2h2v3H7V2zm8 0h2v3h-2V2zM4 5h16v15H4V5zm2 4v9h12V9H6z",
+    sort: "M7 17h10v2H7v-2zm2-4h6v2H9v-2zm2-4h2v2h-2V9zm1-7l4 4h-3v8h-2V6H8l4-4z",
+    ship: "M3 6h15v9H3V6zm15 2h2l1 2v5h-3V8zM7 18a2 2 0 100 4 2 2 0 000-4zm10 0a2 2 0 100 4 2 2 0 000-4z",
+    verify: "M9 16.2l-3.5-3.5L4 14.2l5 5 11-11-1.5-1.5L9 16.2z",
+    sold: "M12 2l7 4v6c0 5-3.5 9.5-7 10-3.5-.5-7-5-7-10V6l7-4zm-1 6h2v2h2v2h-2v2h-2v-2H9v-2h2V8z",
+    reset: "M12 5V2L7 7l5 5V9c2.8 0 5 2.2 5 5s-2.2 5-5 5a5 5 0 01-4.8-3.7l-1.9.5A7 7 0 0012 21a7 7 0 000-14z",
+    page: "M4 4h16v16H4V4zm3 4h10v2H7V8zm0 4h10v2H7v-2zm0 4h6v2H7v-2z"
+  };
+
+  return (
+    <svg viewBox="0 0 24 24" className="admin-icon" aria-hidden="true">
+      <path d={iconMap[type] || iconMap.heading} />
+    </svg>
+  );
+};
+
 const AdminDashboard = () => {
   const [manufacturers, setManufacturers] = useState([]);
   const [batches, setBatches] = useState([]);
+  const [boxes, setBoxes] = useState([]);
   const [products, setProducts] = useState([]);
   const [total, setTotal] = useState(0);
   const [filters, setFilters] = useState(defaultFilters);
   const [statusMessage, setStatusMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [actionLoadingKey, setActionLoadingKey] = useState("");
+  const [walletConnected, setWalletConnected] = useState(false);
+  const [walletAddress, setWalletAddress] = useState("");
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -45,6 +74,11 @@ const AdminDashboard = () => {
   const loadBatches = async (manufacturerId) => {
     const data = await fetchAdminBatches(manufacturerId || "");
     setBatches(data.batches || []);
+  };
+
+  const loadBoxes = async (manufacturerId, batchId) => {
+    const data = await fetchAdminBoxes(manufacturerId || "", batchId || "");
+    setBoxes(data.boxes || []);
   };
 
   const loadProducts = async (activeFilters) => {
@@ -67,6 +101,7 @@ const AdminDashboard = () => {
       try {
         await loadManufacturers();
         await loadBatches("");
+        await loadBoxes("", "");
         await loadProducts(defaultFilters);
       } catch (err) {
         setStatusMessage(err.message || "Failed to load dashboard");
@@ -89,11 +124,21 @@ const AdminDashboard = () => {
 
   const handleFilterChange = async (name, value) => {
     if (name === "manufacturerId") {
-      setFilters((prev) => ({ ...prev, manufacturerId: value, batchId: "", page: 1 }));
+      setFilters((prev) => ({ ...prev, manufacturerId: value, batchId: "", boxId: "", page: 1 }));
       try {
-        await loadBatches(value);
+        await Promise.all([loadBatches(value), loadBoxes(value, "")]);
       } catch (err) {
-        setStatusMessage(err.message || "Failed to fetch batch options");
+        setStatusMessage(err.message || "Failed to fetch filter options");
+      }
+      return;
+    }
+
+    if (name === "batchId") {
+      setFilters((prev) => ({ ...prev, batchId: value, boxId: "", page: 1 }));
+      try {
+        await loadBoxes(filters.manufacturerId, value);
+      } catch (err) {
+        setStatusMessage(err.message || "Failed to fetch box options");
       }
       return;
     }
@@ -104,25 +149,17 @@ const AdminDashboard = () => {
   const resetFilters = async () => {
     setFilters(defaultFilters);
     try {
-      await loadBatches("");
+      await Promise.all([loadBatches(""), loadBoxes("", "")]);
     } catch (err) {
-      setStatusMessage(err.message || "Failed to fetch batch options");
+      setStatusMessage(err.message || "Failed to fetch filter options");
     }
   };
 
-  const setSort = (sortBy) => {
-    setFilters((prev) => {
-      const isSame = prev.sortBy === sortBy;
-      return {
-        ...prev,
-        sortBy,
-        sortOrder: isSame && prev.sortOrder === "desc" ? "asc" : "desc",
-        page: 1
-      };
-    });
-  };
-
   const handleShip = async (row) => {
+    if (!walletConnected) {
+      setStatusMessage("Connect wallet first before shipping.");
+      return;
+    }
     const key = `ship-${row.id}`;
     setActionLoadingKey(key);
     setStatusMessage("");
@@ -139,6 +176,10 @@ const AdminDashboard = () => {
   };
 
   const handleVerify = async (row) => {
+    if (!walletConnected) {
+      setStatusMessage("Connect wallet first before verifying.");
+      return;
+    }
     const key = `verify-${row.id}`;
     setActionLoadingKey(key);
     setStatusMessage("");
@@ -155,6 +196,10 @@ const AdminDashboard = () => {
   };
 
   const handleMarkSold = async (row) => {
+    if (!walletConnected) {
+      setStatusMessage("Connect wallet first before marking sold.");
+      return;
+    }
     const key = `sold-${row.id}`;
     setActionLoadingKey(key);
     setStatusMessage("");
@@ -170,44 +215,90 @@ const AdminDashboard = () => {
     }
   };
 
-  return (
-    <div className="premium-dashboard" style={{ width: "100vw", padding: 20 }}>
-      <h2>Admin Operations Dashboard</h2>
+  const handleConnectWallet = async () => {
+    try {
+      const address = await connectBlockchain();
+      setWalletConnected(true);
+      setWalletAddress(address || "");
+      setStatusMessage(`Wallet connected: ${address || "-"}`);
+    } catch (err) {
+      setWalletConnected(false);
+      setWalletAddress("");
+      setStatusMessage(`Wallet connection failed: ${err.message || "Unknown error"}`);
+    }
+  };
 
-      <div className="fetched-product-card" style={{ marginBottom: 16 }}>
-        <h4 style={{ marginTop: 0 }}>Manufacturer Overview</h4>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(220px, 1fr))", gap: 12 }}>
+  return (
+    <div className="premium-dashboard admin-dashboard-shell">
+      <h2 className="admin-title">
+        <Icon type="heading" />
+        Admin Operations Dashboard
+      </h2>
+      <p className="admin-subtitle">Monitor every manufacturer, filter inventory quickly, and execute lifecycle actions from one place.</p>
+      <div className="center" style={{ marginBottom: 12 }}>
+        <button
+          className="btn-primary"
+          onClick={handleConnectWallet}
+          style={{ backgroundColor: walletConnected ? "#28a745" : "#007bff" }}
+        >
+          {walletConnected ? "Connected" : "Connect Wallet"}
+        </button>
+        {walletConnected && (
+          <div style={{ marginTop: 8, color: "#9bd4ff", fontSize: 13 }}>
+            Wallet: {walletAddress ? `${walletAddress.slice(0, 12)}...` : "-"}
+          </div>
+        )}
+      </div>
+
+      <div className="fetched-product-card admin-section">
+        <h4 className="admin-section-title">
+          <Icon type="manufacturer" />
+          Manufacturer Overview
+        </h4>
+        <div className="manufacturer-overview-grid">
           {manufacturers.map((m) => (
             <button
               key={m.id}
               type="button"
               onClick={() => handleFilterChange("manufacturerId", String(m.id))}
-              style={{
-                textAlign: "left",
-                borderRadius: 8,
-                border: selectedManufacturer?.id === m.id ? "1px solid #5eb8ff" : "1px solid #3a3f4b",
-                background: "#0f1724",
-                color: "#ffffff",
-                padding: 12,
-                cursor: "pointer"
-              }}
+              className={`manufacturer-card ${selectedManufacturer?.id === m.id ? "selected" : ""}`}
             >
-              <div style={{ fontSize: 14, opacity: 0.9 }}>{m.email}</div>
-              <div style={{ marginTop: 8, fontSize: 13 }}>Products: {m.totalProducts}</div>
-              <div style={{ fontSize: 13 }}>Boxes: {m.totalBoxes}</div>
-              <div style={{ fontSize: 13 }}>
-                Status: S {m.shippedProducts} / V {m.verifiedProducts} / Sold {m.soldProducts}
+              <div className="manufacturer-card-email">{m.email}</div>
+              <div className="manufacturer-stats-grid">
+                <div className="manufacturer-stat">
+                  <Icon type="products" />
+                  <span>Products: {m.totalProducts}</span>
+                </div>
+                <div className="manufacturer-stat">
+                  <Icon type="box" />
+                  <span>Boxes: {m.totalBoxes}</span>
+                </div>
+                <div className="manufacturer-stat">
+                  <Icon type="ship" />
+                  <span>Shipped: {m.shippedProducts}</span>
+                </div>
+                <div className="manufacturer-stat">
+                  <Icon type="verify" />
+                  <span>Verified: {m.verifiedProducts}</span>
+                </div>
+                <div className="manufacturer-stat">
+                  <Icon type="sold" />
+                  <span>Sold: {m.soldProducts}</span>
+                </div>
               </div>
             </button>
           ))}
         </div>
       </div>
 
-      <div className="fetched-product-card" style={{ marginBottom: 16 }}>
-        <h4 style={{ marginTop: 0 }}>Filters & Sorting</h4>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(180px, 1fr))", gap: 12 }}>
-          <div>
-            <label>Manufacturer</label>
+      <div className="fetched-product-card admin-section">
+        <h4 className="admin-section-title">
+          <Icon type="filter" />
+          Filters and Sorting
+        </h4>
+        <div className="admin-filters-grid">
+          <div className="admin-filter-item">
+            <label className="admin-filter-label"><Icon type="manufacturer" />Manufacturer</label>
             <select
               className="login-input"
               value={filters.manufacturerId}
@@ -220,8 +311,8 @@ const AdminDashboard = () => {
             </select>
           </div>
 
-          <div>
-            <label>Batch</label>
+          <div className="admin-filter-item">
+            <label className="admin-filter-label"><Icon type="products" />Batch ID</label>
             <select
               className="login-input"
               value={filters.batchId}
@@ -236,8 +327,24 @@ const AdminDashboard = () => {
             </select>
           </div>
 
-          <div>
-            <label>Status</label>
+          <div className="admin-filter-item">
+            <label className="admin-filter-label"><Icon type="box" />Box ID</label>
+            <select
+              className="login-input"
+              value={filters.boxId}
+              onChange={(e) => handleFilterChange("boxId", e.target.value)}
+            >
+              <option value="">All Boxes</option>
+              {boxes.map((b) => (
+                <option key={`${b.manufacturerId}-${b.boxId}`} value={b.boxId}>
+                  {b.boxId} ({b.productCount})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="admin-filter-item">
+            <label className="admin-filter-label"><Icon type="status" />Status</label>
             <select
               className="login-input"
               value={filters.status}
@@ -251,8 +358,8 @@ const AdminDashboard = () => {
             </select>
           </div>
 
-          <div>
-            <label>Sort By</label>
+          <div className="admin-filter-item">
+            <label className="admin-filter-label"><Icon type="sort" />Sort By</label>
             <select
               className="login-input"
               value={filters.sortBy}
@@ -267,8 +374,8 @@ const AdminDashboard = () => {
             </select>
           </div>
 
-          <div>
-            <label>From Date</label>
+          <div className="admin-filter-item">
+            <label className="admin-filter-label"><Icon type="calendar" />From Date</label>
             <input
               type="date"
               className="login-input"
@@ -277,8 +384,8 @@ const AdminDashboard = () => {
             />
           </div>
 
-          <div>
-            <label>To Date</label>
+          <div className="admin-filter-item">
+            <label className="admin-filter-label"><Icon type="calendar" />To Date</label>
             <input
               type="date"
               className="login-input"
@@ -287,8 +394,8 @@ const AdminDashboard = () => {
             />
           </div>
 
-          <div>
-            <label>Sort Order</label>
+          <div className="admin-filter-item">
+            <label className="admin-filter-label"><Icon type="sort" />Sort Order</label>
             <select
               className="login-input"
               value={filters.sortOrder}
@@ -299,27 +406,32 @@ const AdminDashboard = () => {
             </select>
           </div>
 
-          <div style={{ display: "flex", alignItems: "flex-end" }}>
-            <button className="btn-outline" onClick={resetFilters}>Reset Filters</button>
+          <div className="admin-filter-item admin-filter-actions">
+            <button className="btn-outline btn-reset" onClick={resetFilters}>
+              <Icon type="reset" />
+              Reset Filters
+            </button>
           </div>
         </div>
       </div>
 
-      <div className="fetched-product-card">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h4 style={{ marginTop: 0 }}>Products ({total})</h4>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn-outline" onClick={() => setSort("createdAt")}>Sort Date</button>
-            <button className="btn-outline" onClick={() => setSort("batchId")}>Sort Batch</button>
-            <button className="btn-outline" onClick={() => setSort("manufacturer")}>Sort Manufacturer</button>
+      <div className="fetched-product-card admin-section">
+        <div className="products-header-row">
+          <h4 className="admin-section-title">
+            <Icon type="products" />
+            Product Inventory ({total})
+          </h4>
+          <div className="products-header-note">
+            <Icon type="sort" />
+            Sorting is applied immediately from the Sort By and Sort Order fields.
           </div>
         </div>
 
         {loading ? (
-          <p>Loading products...</p>
+          <p className="products-loading">Loading products...</p>
         ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <div className="admin-products-table-wrap">
+            <table className="admin-products-table">
               <thead>
                 <tr>
                   <th>Product</th>
@@ -341,29 +453,35 @@ const AdminDashboard = () => {
                     <td>{p.manufacturer?.email || "-"}</td>
                     <td>{p.box?.boxId || "-"}</td>
                     <td>{p.batchId}</td>
-                    <td>{p.lifecycle}</td>
+                    <td><span className="lifecycle-pill">{p.lifecycle}</span></td>
                     <td>{p.shipped ? "Yes" : "No"}</td>
                     <td>{p.verified ? "Yes" : "No"}</td>
                     <td>{p.sold ? "Yes" : "No"}</td>
                     <td>{new Date(p.createdAt).toLocaleString()}</td>
                     <td>
-                      <div style={{ display: "flex", gap: 6 }}>
+                      <div className="admin-actions">
                         <button
+                          className="btn-action btn-ship"
                           onClick={() => handleShip(p)}
                           disabled={actionLoadingKey === `ship-${p.id}`}
                         >
+                          <Icon type="ship" />
                           Ship Box
                         </button>
                         <button
+                          className="btn-action btn-verify"
                           onClick={() => handleVerify(p)}
                           disabled={actionLoadingKey === `verify-${p.id}`}
                         >
+                          <Icon type="verify" />
                           Verify
                         </button>
                         <button
+                          className="btn-action btn-sold"
                           onClick={() => handleMarkSold(p)}
                           disabled={actionLoadingKey === `sold-${p.id}`}
                         >
+                          <Icon type="sold" />
                           Mark Sold
                         </button>
                       </div>
@@ -372,7 +490,7 @@ const AdminDashboard = () => {
                 ))}
                 {products.length === 0 && (
                   <tr>
-                    <td colSpan={10} style={{ textAlign: "center", padding: 16 }}>
+                    <td colSpan={10} className="admin-empty-row">
                       No products found for current filters.
                     </td>
                   </tr>
@@ -382,7 +500,7 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>
+        <div className="admin-pagination">
           <button
             className="btn-outline"
             disabled={filters.page <= 1}
@@ -390,7 +508,10 @@ const AdminDashboard = () => {
           >
             Previous
           </button>
-          <span>Page {filters.page} of {totalPages}</span>
+          <span className="admin-page-indicator">
+            <Icon type="page" />
+            Page {filters.page} of {totalPages}
+          </span>
           <button
             className="btn-outline"
             disabled={filters.page >= totalPages}
@@ -401,7 +522,7 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      {statusMessage && <div className="login-error" style={{ marginTop: 20 }}>{statusMessage}</div>}
+      {statusMessage && <div className="login-error admin-status">{statusMessage}</div>}
     </div>
   );
 };

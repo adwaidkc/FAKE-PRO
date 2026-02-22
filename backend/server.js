@@ -223,10 +223,55 @@ app.get("/api/admin/batches", authenticate, requireAdmin, async (req, res) => {
   }
 });
 
+app.get("/api/admin/boxes", authenticate, requireAdmin, async (req, res) => {
+  try {
+    const rawManufacturerId = String(req.query.manufacturerId || "").trim();
+    const batchId = String(req.query.batchId || "").trim();
+    const manufacturerId = rawManufacturerId ? Number.parseInt(rawManufacturerId, 10) : null;
+
+    if (rawManufacturerId && (Number.isNaN(manufacturerId) || manufacturerId <= 0)) {
+      return res.status(400).json({ error: "manufacturerId must be a valid integer" });
+    }
+
+    const boxes = await prisma.box.findMany({
+      where: {
+        ...(manufacturerId ? { manufacturerId } : {}),
+        ...(batchId ? { batchId } : {})
+      },
+      select: {
+        manufacturerId: true,
+        boxId: true,
+        batchId: true,
+        _count: {
+          select: {
+            products: true
+          }
+        }
+      },
+      orderBy: [
+        { createdAt: "desc" }
+      ]
+    });
+
+    return res.json({
+      boxes: boxes.map((b) => ({
+        manufacturerId: b.manufacturerId,
+        boxId: b.boxId,
+        batchId: b.batchId,
+        productCount: b._count.products
+      }))
+    });
+  } catch (err) {
+    console.error("❌ Admin boxes query failed:", err);
+    res.status(500).json({ error: "Admin boxes query failed" });
+  }
+});
+
 app.get("/api/admin/products", authenticate, requireAdmin, async (req, res) => {
   try {
     const status = String(req.query.status || "ALL").trim().toUpperCase();
     const batchId = String(req.query.batchId || "").trim();
+    const boxId = String(req.query.boxId || "").trim();
     const fromDate = String(req.query.fromDate || "").trim();
     const toDate = String(req.query.toDate || "").trim();
     const rawManufacturerId = String(req.query.manufacturerId || "").trim();
@@ -247,6 +292,7 @@ app.get("/api/admin/products", authenticate, requireAdmin, async (req, res) => {
     const where = {
       ...(manufacturerId ? { manufacturerId } : {}),
       ...(batchId ? { batchId } : {}),
+      ...(boxId ? { box: { boxId: { contains: boxId, mode: "insensitive" } } } : {}),
       ...(fromDate || toDate ? { createdAt } : {}),
       ...(status !== "ALL" ? { lifecycle: status } : {})
     };

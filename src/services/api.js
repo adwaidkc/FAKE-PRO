@@ -76,6 +76,23 @@ export async function fetchAdminBatches(manufacturerId) {
   return res.json();
 }
 
+export async function fetchAdminBoxes(manufacturerId, batchId) {
+  const search = new URLSearchParams();
+  if (manufacturerId) search.set("manufacturerId", String(manufacturerId));
+  if (batchId) search.set("batchId", String(batchId));
+  const qs = search.toString() ? `?${search.toString()}` : "";
+  const res = await fetch(`${BASE_URL}/api/admin/boxes${qs}`, {
+    headers: getAuthHeaders()
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to fetch boxes");
+  }
+
+  return res.json();
+}
+
 export async function fetchAdminProducts(params = {}) {
   const search = new URLSearchParams();
 

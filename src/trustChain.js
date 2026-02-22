@@ -34,8 +34,10 @@ const getContract = async () => {
 
 export const connectBlockchain = async () => {
   if (!window.ethereum) throw new Error("MetaMask not found");
-  await window.ethereum.request({ method: "eth_requestAccounts" });
+  const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+  const address = accounts?.[0] || "";
   console.log("✅ Wallet connected");
+  return address;
 };
 
 /* ================= BACKEND SECRET STORAGE ================= */

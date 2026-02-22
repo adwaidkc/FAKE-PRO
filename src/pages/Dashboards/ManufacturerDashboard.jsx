@@ -35,6 +35,7 @@ const ManufacturerDashboard = () => {
   const [batch, setBatch] = useState(defaultBatch);
   const [status, setStatus] = useState("");
   const [walletConnected, setWalletConnected] = useState(false);
+  const [walletAddress, setWalletAddress] = useState("");
   const [activeAction, setActiveAction] = useState("register");
   const [batchCreated, setBatchCreated] = useState(false);
 
@@ -48,11 +49,13 @@ const ManufacturerDashboard = () => {
 
   const handleConnect = async () => {
     try {
-      await connectBlockchain();
+      const address = await connectBlockchain();
       setWalletConnected(true);
-      setStatus("✅ Wallet connected");
+      setWalletAddress(address || "");
+      setStatus(`✅ Wallet connected: ${address || "-"}`);
     } catch (err) {
       console.error(err);
+      setWalletAddress("");
       setStatus("❌ Wallet connection failed");
     }
   };
@@ -60,6 +63,10 @@ const ManufacturerDashboard = () => {
   /* ================= CREATE & REGISTER BATCH ================= */
 
 const handleCreateBatch = async () => {
+  if (!walletConnected) {
+    setStatus("❌ Connect wallet first before creating/registering a batch.");
+    return;
+  }
   setStatus("⏳ Registering batch...");
 
   const result = await registerBatch(batch);
@@ -106,6 +113,10 @@ Products created: P${start} → P${end}`
   /* ================= SHIP BOX ================= */
 
   const handleShipBox = async () => {
+  if (!walletConnected) {
+    setStatus("❌ Connect wallet first before shipping.");
+    return;
+  }
   try {
     setStatus("⏳ Shipping box...");
     await shipBox(boxId); // ✅ ONE transaction
@@ -145,6 +156,11 @@ Products created: P${start} → P${end}`
         >
           {walletConnected ? "Connected" : "Connect Wallet"}
         </button>
+        {walletConnected && (
+          <div style={{ marginTop: 8, color: "#9bd4ff", fontSize: 13 }}>
+            Wallet: {walletAddress ? `${walletAddress.slice(0, 12)}...` : "-"}
+          </div>
+        )}
       </div>
 
       {/* ACTION SWITCH */}
