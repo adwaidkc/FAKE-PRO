@@ -1,279 +1,137 @@
+# FAKE-PRODUCT
 
+NFC + Blockchain based product authenticity and lifecycle tracking system.
 
-# 🔐 FAKE-PRODUCT
+## Overview
+This project uses:
+- React + Vite frontend dashboards (Admin, Manufacturer, Retailer, User)
+- Node/Express backend with Prisma + PostgreSQL
+- Solidity smart contract (`TrustChain.sol`) on Hardhat
+- NFC challenge-response verification flow for customer authenticity checks
 
-### NFC + Blockchain Based Product Authentication System
+Core intent:
+- Manufacturer registers products in batches/boxes on-chain
+- Backend finalizes DB only after successful on-chain transaction
+- Retailer verifies incoming boxes/products
+- Products are marked sold and can be checked by end users
 
-This project detects **fake / counterfeit products** using:
+## Current Flow
+1. Manufacturer prepares batch (`/prepare-batch`) and gets a signed draft token.
+2. Frontend sends on-chain `registerBatchProducts(...)` transaction.
+3. Frontend calls `/finalize-batch` with `draftToken + txHash`.
+4. Backend verifies tx input/receipt and writes Box/Product rows to DB.
+5. Ship/Verify/Sold actions update chain first, then sync DB state.
+6. User dashboard verifies authenticity using challenge-response NFC flow (`/challenge` -> `/verify`).
 
-* 🔒 **Challenge–Response NFC authentication**
-* ⛓️ **Ethereum Blockchain (Hardhat)**
-* 🌐 **React Frontend**
-* 🧠 **Node.js Backend (Verification Authority)**
+## Key Implemented Changes
+- Added 2-step safe registration flow: `prepare-batch` + `finalize-batch`.
+- Admin dashboard redesigned with improved filters, box-id filtering, manufacturer overview, and status styling.
+- Admin actions now operate box-wise for ship/verify/sold.
+- Contract supports single-transaction box sell: `saleBox(string boxId)`.
+- Retailer dashboard simplified: product verification by Product ID only (dynamic seal UI removed).
+- User dashboard verification result UI upgraded with richer product/status presentation.
+- Box shipping address added:
+  - DB column on `Box.shippingAddress`
+  - Manufacturer Ship Box form now captures shipping address
+  - Ship sync endpoint stores shipping address
+- Status message styling now supports semantic types (`success/info/warning/error`) instead of only red.
 
----
-
-## 🧠 Core Idea (Simple)
-
-1. Every product has a **secure NFC tag**
-2. NFC tag never reveals its secret
-3. Backend sends a **random challenge**
-4. NFC signs the challenge
-5. Backend verifies the response
-6. Blockchain confirms product lifecycle
-
-If **any step fails → product is FAKE**
-
----
-
-## 📁 FINAL PROJECT STRUCTURE
-
+## Project Structure (Current)
 ```
 FAKE-PRODUCT/
-│
-├── backend/                        # 🔐 Backend (Verification Server)
-│   ├── server.js                   # Express server (/challenge, /verify)
-│   ├── abi.json                    # Smart contract ABI
-│   ├── .env                        # RPC URL, private key, contract address
-│   │
-│   ├── nfc_emulator/               # 🧠 NFC Simulation (Demo Mode)
-│   │   ├── chip.js                 # Secure NFC logic (secret never exposed)
-│   │   └── secretStore.js          # Demo secrets (simulates NFC chip)
-│   │
-│   └── package.json
-│
-├── contracts/                      # ⛓️ Solidity Smart Contracts
+├── backend/
+│   ├── server.js
+│   ├── routes/
+│   ├── middleware/
+│   ├── prisma/
+│   │   ├── schema.prisma
+│   │   └── migrations/
+│   ├── nfc_emulator/
+│   └── abi.json
+├── contracts/
 │   └── TrustChain.sol
-│
-├── scripts/                        # ⛓️ Hardhat scripts
-│   └── deploy.js                   # Deploy contract
-│
-├── frontend/                       # 🌐 React Frontend
-│   ├── index.html
-│   ├── package.json
-│   │
-│   ├── src/
-│   │   ├── App.jsx
-│   │   ├── main.jsx
-│   │
-│   │   ├── pages/
-│   │   │   └── Dashboards/
-│   │   │       └── UserDashboard.jsx
-│   │   │
-│   │   ├── services/
-│   │   │   └── api.js               # Calls backend APIs
-│   │   │
-│   │   ├── nfc/
-│   │   │   └── nfcScanner.js        # NFC scan (real + demo)
-│   │   │
-│   │   └── styles/
-│   │       └── index.css
-│
+├── scripts/
+│   └── deploy.cjs
+├── src/
+│   ├── pages/Dashboards/
+│   │   ├── AdminDashboard.jsx
+│   │   ├── ManufacturerDashboard.jsx
+│   │   ├── RetailerDashboard.jsx
+│   │   └── UserDashboard.jsx
+│   ├── services/api.js
+│   ├── trustChain.js
+│   ├── TrustChainAbi.json
+│   └── index2.css
 ├── hardhat.config.cjs
-├── README.md
-└── .gitignore
+└── package.json
 ```
 
----
+## Setup
+Use separate terminals.
 
-## 🖥️ HOW TO RUN THE PROJECT (IMPORTANT)
-
-You need **THREE terminals running together**.
-
----
-
-## 🟢 TERMINAL 1 — Start Blockchain (Hardhat)
-
-This runs the **local Ethereum blockchain**.
-
+### 1) Start Hardhat local chain
 ```bash
 npx hardhat node
 ```
 
-✔ Keep this terminal **OPEN**
-✔ Do NOT close it
-✔ Closing it wipes all blockchain data
-
----
-
-## 🟢 TERMINAL 2 — Deploy Smart Contract
-
+### 2) Compile + deploy contract
 ```bash
+npx hardhat compile
 npx hardhat run scripts/deploy.cjs --network localhost
 ```
 
-You’ll see:
+Copy deployed contract address.
 
+### 3) Configure env
+Frontend (`.env` in project root):
+```env
+VITE_CONTRACT_ADDRESS=0x...
 ```
-TrustChain deployed to: 0xABC123...
-```
 
-📌 **Copy this contract address**
-
-CONTRACT_ADDRESS=0xABC123...   # paste deployed address in trustChain.js file
-
----
-
-## 🟢 TERMINAL 3 — Start Backend Server
-
-### Step 1: Create `.env` file in `backend/`
-
+Backend (`backend/.env`):
 ```env
 RPC_URL=http://127.0.0.1:8545
-CONTRACT_ADDRESS=0xABC123...   # paste deployed address
-PRIVATE_KEY=0xHARDHAT_PRIVATE_KEY
+CONTRACT_ADDRESS=0x...
+PRIVATE_KEY=0x...
+JWT_SECRET=...
 ```
 
-### Step 2: Run backend
+### 4) Run migrations
+```bash
+cd backend
+npx prisma migrate dev
+```
 
+### 5) Start backend + frontend
 ```bash
 cd backend
 node server.js
 ```
-
-Expected output:
-
-```
-Backend running on http://localhost:5000
-```
-
----
-
-## 🟢 TERMINAL 4 — Start Frontend
-
 ```bash
-
 npm run dev
 ```
 
-Open browser:
+Frontend URL:
+`http://localhost:5173`
 
-```
-http://localhost:5173
-```
+## Important Endpoints
+- Auth: `/api/auth/register`, `/api/auth/login`
+- Batch: `/prepare-batch`, `/finalize-batch`
+- Admin queries: `/api/admin/manufacturers`, `/api/admin/batches`, `/api/admin/boxes`, `/api/admin/products`
+- Sync:
+  - `/api/db/box/:boxId/ship`
+  - `/api/db/box/:boxId/verify`
+  - `/api/db/box/:boxId/sold`
+  - `/api/db/product/:productId/verify`
+  - `/api/db/product/:productId/sold`
+- Authenticity: `/challenge`, `/verify`
 
----
+## Notes
+- Chain and DB must both be running and pointed to the same contract address.
+- If contract ABI or deployment changes, restart backend and frontend.
+- If an on-chain tx succeeds but DB is stale, re-run/fix finalize or sync flow rather than manual DB edits.
 
-## 🧪 REGISTER A PRODUCT (ON BLOCKCHAIN)
-
-Run this **ONCE** after deployment:
-
-```bash
-npx hardhat console --network localhost
-```
-
-```js
-const tc = await ethers.getContractAt(
-  "TrustChain",
-  "0xABC123..." // SAME as backend
-);
-
-await tc.registerProduct(
-  "P1001",
-  "BOX01",
-  "Demo Product",
-  "Electronics",
-  "Demo Manufacturer",
-  "2024-01-01",
-  "India",
-  "MODEL-X",
-  "SERIAL-001",
-  "1 Year",
-  "BATCH-01",
-  "Black",
-  "{}",
-  1000,
-  "https://via.placeholder.com/300"
-);
-
-await tc.shipProduct("P1001");
-await tc.verifyRetailer("P1001");
-```
-
-✔ Product is now **officially registered on blockchain**
-
----
-
-## 🔄 HOW VERIFICATION WORKS (Flow)
-
-```
-User clicks "Scan NFC"
-   ↓
-Frontend → /challenge
-   ↓
-Backend → blockchain check
-   ↓
-Backend sends challenge
-   ↓
-NFC signs challenge
-   ↓
-Frontend → /verify
-   ↓
-Backend verifies response
-   ↓
-✅ Genuine / ❌ Fake
-```
-
----
-
-## 📱 NFC HANDLING (IMPORTANT)
-
-### Real NFC
-
-* Works **only on Android Chrome**
-* Web NFC cannot do secure crypto yet
-
-### Demo Mode (Desktop)
-
-* Manually enter Product ID
-* Secret is simulated
-* Algorithm remains **exactly the same**
-
-This is **acceptable for academic projects**.
-
----
-
-## 🔐 SECURITY DESIGN (Mentor-Ready)
-
-✔ No static Product ID authentication
-✔ Secret never leaves NFC chip
-✔ Random challenge per scan
-✔ Replay attacks prevented
-✔ Blockchain data immutable
-
----
-
-## ⚠️ COMMON MISTAKES (AVOID)
-
-❌ Frontend & backend using different contract addresses
-❌ Restarting Hardhat node after registering products
-❌ Registering products in Remix JS VM
-❌ MetaMask network mismatch
-
----
-
-## 🧠 ONE GOLDEN RULE
-
-> **Blockchain data lives at a contract address.
-> Same code ≠ same data.**
-
----
-
-## 🎯 FINAL STATUS
-
-✔ Project working
-✔ Architecture correct
-✔ Security justified
-✔ Demo-ready
-✔ Mentor-safe
-
----
-
-If you want next, I can:
-
-* Add **auto-seed script**
-* Prepare **final PPT**
-* Write **report + diagrams**
-* Convert demo to **Sepolia testnet**
-
-Just say 👍
+## Current Known Constraints
+- `boxId` is unique per manufacturer (not globally).
+- Retailer sync may require explicit `manufacturerId` when ambiguous IDs exist across manufacturers.
+- Full custody transfer model (manufacturer -> retailer -> customer wallets) is not yet enforced at contract level.
