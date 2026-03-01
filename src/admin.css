@@ -427,6 +427,191 @@
   margin-top: 4px;
 }
 
+.admin-analytics-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.admin-analytics-range {
+  max-width: 190px;
+}
+
+.admin-analytics-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.admin-analytics-kpi {
+  border: 1px solid rgba(147, 197, 253, 0.2);
+  border-radius: 12px;
+  padding: 10px;
+  background: linear-gradient(145deg, rgba(14, 31, 53, 0.9), rgba(12, 25, 45, 0.78));
+  display: grid;
+  gap: 4px;
+}
+
+.admin-analytics-kpi span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #cfe4fb;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.admin-analytics-kpi strong {
+  color: #f3f9ff;
+  font-size: 1.18rem;
+}
+
+.admin-analytics-kpi small {
+  color: #9ec0e4;
+  font-size: 0.74rem;
+}
+
+.admin-analytics-kpi.up {
+  border-color: rgba(52, 211, 153, 0.36);
+}
+
+.admin-analytics-kpi.down {
+  border-color: rgba(248, 113, 113, 0.36);
+}
+
+.admin-analytics-main-grid {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.admin-chart-panel {
+  border: 1px solid rgba(147, 197, 253, 0.2);
+  border-radius: 12px;
+  background: linear-gradient(150deg, #121f33, #0e1827);
+  padding: 12px;
+}
+
+.admin-chart-panel h4 {
+  margin: 0 0 8px;
+  color: #dbeafe;
+  font-size: 0.92rem;
+}
+
+.admin-area-chart {
+  width: 100%;
+  height: 290px;
+  display: block;
+}
+
+.admin-analytics-funnel-card {
+  border: 1px solid rgba(147, 197, 253, 0.2);
+  border-radius: 12px;
+  background: linear-gradient(150deg, #111d31, #0d1728);
+  padding: 12px;
+}
+
+.admin-analytics-funnel-card h4 {
+  margin: 0 0 10px;
+  color: #e6f0ff;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.admin-analytics-funnel-list {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-analytics-funnel-row {
+  display: grid;
+  grid-template-columns: 96px 1fr 40px;
+  gap: 8px;
+  align-items: center;
+}
+
+.admin-analytics-funnel-row span {
+  color: #cfe4fb;
+  font-size: 0.8rem;
+}
+
+.admin-analytics-funnel-track {
+  height: 10px;
+  border-radius: 999px;
+  background: #0b1322;
+  border: 1px solid #2a4264;
+  overflow: hidden;
+}
+
+.admin-analytics-funnel-track i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #38bdf8, #60a5fa);
+}
+
+.admin-analytics-funnel-row strong {
+  text-align: right;
+  color: #eff6ff;
+  font-size: 0.82rem;
+}
+
+.admin-area-bars {
+  border: 1px solid rgba(147, 197, 253, 0.2);
+  border-radius: 12px;
+  background: linear-gradient(150deg, #121e31, #0e1827);
+  padding: 12px;
+}
+
+.admin-area-bars h4 {
+  margin: 0 0 8px;
+  color: #dbeafe;
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-area-row {
+  display: grid;
+  grid-template-columns: 180px 1fr 42px;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.admin-area-row span {
+  color: #bfd6f7;
+  font-size: 0.78rem;
+}
+
+.admin-area-track {
+  height: 10px;
+  border-radius: 999px;
+  background: #0b1322;
+  border: 1px solid #2a4264;
+  overflow: hidden;
+}
+
+.admin-area-track i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+}
+
+.admin-area-row strong {
+  text-align: right;
+  color: #eff6ff;
+  font-size: 0.82rem;
+}
+
 @media (max-width: 1180px) {
   .admin-page {
     grid-template-columns: 1fr;
@@ -445,6 +630,14 @@
 
   .admin-overview-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-analytics-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-analytics-main-grid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -472,5 +665,36 @@
   .admin-page .admin-pagination {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .admin-analytics-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-analytics-range {
+    max-width: none;
+  }
+
+  .admin-analytics-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-area-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .admin-area-row strong {
+    text-align: left;
+  }
+
+  .admin-analytics-funnel-row {
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+
+  .admin-analytics-funnel-row strong {
+    text-align: left;
   }
 }
