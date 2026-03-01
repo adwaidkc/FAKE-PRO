@@ -6,7 +6,9 @@ import {
   fetchAdminManufacturers,
   fetchAdminProducts
 } from "../../services/api";
+import BackButton from "../../components/BackButton";
 import "../../index2.css";
+import "../../admin.css";
 
 const PAGE_SIZE = 5;
 
@@ -68,6 +70,7 @@ const AdminDashboard = () => {
   const [actionLoadingKey, setActionLoadingKey] = useState("");
   const [walletConnected, setWalletConnected] = useState(false);
   const [walletAddress, setWalletAddress] = useState("");
+  const [activeSection, setActiveSection] = useState("overview");
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -239,302 +242,395 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div className="premium-dashboard admin-dashboard-shell">
-      <h2 className="admin-title">
-        <Icon type="heading" />
-        Admin Operations Dashboard
-      </h2>
-      <p className="admin-subtitle">Monitor every manufacturer, filter inventory quickly, and execute lifecycle actions from one place.</p>
-      <div className="center" style={{ marginBottom: 12 }}>
+    <div className="admin-page">
+      <BackButton to="/roles" />
+
+      <aside className="admin-sidebar">
+        <div className="admin-brand">
+          <img src="/bc1.png" alt="TrustChain" />
+          <div>
+            <h2>TrustChain</h2>
+            <p>Admin Console</p>
+          </div>
+        </div>
+
         <button
-          className="btn-primary"
-          onClick={handleConnectWallet}
-          style={{ backgroundColor: walletConnected ? "#28a745" : "#007bff" }}
+          className={`admin-nav ${activeSection === "overview" ? "active" : ""}`}
+          onClick={() => setActiveSection("overview")}
         >
-          {walletConnected ? "Connected" : "Connect Wallet"}
+          <Icon type="manufacturer" /> Manufacturer Overview
         </button>
-        {walletConnected && (
-          <div style={{ marginTop: 8, color: "#9bd4ff", fontSize: 13 }}>
-            Wallet: {walletAddress ? `${walletAddress.slice(0, 12)}...` : "-"}
-          </div>
-        )}
-      </div>
 
-      <div className="fetched-product-card admin-section">
-        <h4 className="admin-section-title">
-          <Icon type="manufacturer" />
-          Manufacturer Overview
-        </h4>
-        <div className="manufacturer-overview-grid">
-          {manufacturers.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              onClick={() => handleFilterChange("manufacturerId", String(m.id))}
-              className={`manufacturer-card ${selectedManufacturer?.id === m.id ? "selected" : ""}`}
-            >
-              <div className="manufacturer-card-email">{m.email}</div>
-              <div className="manufacturer-stats-grid">
-                <div className="manufacturer-stat">
-                  <Icon type="products" />
-                  <span>Products: {m.totalProducts}</span>
-                </div>
-                <div className="manufacturer-stat">
-                  <Icon type="box" />
-                  <span>Boxes: {m.totalBoxes}</span>
-                </div>
-                <div className="manufacturer-stat">
-                  <Icon type="ship" />
-                  <span>Shipped: {m.shippedProducts}</span>
-                </div>
-                <div className="manufacturer-stat">
-                  <Icon type="verify" />
-                  <span>Verified: {m.verifiedProducts}</span>
-                </div>
-                <div className="manufacturer-stat">
-                  <Icon type="sold" />
-                  <span>Sold: {m.soldProducts}</span>
-                </div>
+        <button
+          className={`admin-nav ${activeSection === "inventory" ? "active" : ""}`}
+          onClick={() => setActiveSection("inventory")}
+        >
+          <Icon type="products" /> Inventory Control
+        </button>
+
+        <div className="admin-sidebar-foot">
+          <button
+            className="btn-primary"
+            onClick={handleConnectWallet}
+            style={{ backgroundColor: walletConnected ? "#28a745" : "#007bff" }}
+          >
+            {walletConnected ? "Connected" : "Connect Wallet"}
+          </button>
+          {walletConnected && (
+            <p className="admin-wallet-note">
+              Wallet: {walletAddress ? `${walletAddress.slice(0, 12)}...` : "-"}
+            </p>
+          )}
+        </div>
+      </aside>
+
+      <main className="admin-main">
+        <section className="admin-card admin-intro-card">
+          <h2>
+            <Icon type="heading" />
+            Admin Operations Dashboard
+          </h2>
+          <p>Monitor every manufacturer, filter inventory quickly, and execute lifecycle actions from one place.</p>
+          <div className="admin-intro-chips">
+            <span>Manufacturer Insights</span>
+            <span>Lifecycle Actions</span>
+            <span>Live Filter Controls</span>
+          </div>
+        </section>
+
+        {activeSection === "overview" && (
+          <section className="admin-card">
+            <h4 className="admin-section-title">
+              <Icon type="manufacturer" />
+              Manufacturer Overview
+            </h4>
+            <div className="admin-overview-summary">
+              <div className="admin-overview-kpi">
+                <label>Total Manufacturers</label>
+                <strong>{manufacturers.length}</strong>
               </div>
-            </button>
-          ))}
-        </div>
-      </div>
+              <div className="admin-overview-kpi">
+                <label>Total Products</label>
+                <strong>{manufacturers.reduce((sum, m) => sum + Number(m.totalProducts || 0), 0)}</strong>
+              </div>
+              <div className="admin-overview-kpi">
+                <label>Total Boxes</label>
+                <strong>{manufacturers.reduce((sum, m) => sum + Number(m.totalBoxes || 0), 0)}</strong>
+              </div>
+              <div className="admin-overview-kpi">
+                <label>Sold Products</label>
+                <strong>{manufacturers.reduce((sum, m) => sum + Number(m.soldProducts || 0), 0)}</strong>
+              </div>
+            </div>
 
-      <div className="fetched-product-card admin-section">
-        <h4 className="admin-section-title">
-          <Icon type="filter" />
-          Filters and Sorting
-        </h4>
-        <div className="admin-filters-grid">
-          <div className="admin-filter-item">
-            <label className="admin-filter-label"><Icon type="manufacturer" />Manufacturer</label>
-            <select
-              className="login-input"
-              value={filters.manufacturerId}
-              onChange={(e) => handleFilterChange("manufacturerId", e.target.value)}
-            >
-              <option value="">All Manufacturers</option>
+            <div className="manufacturer-overview-grid admin-manufacturer-grid">
               {manufacturers.map((m) => (
-                <option key={m.id} value={m.id}>{m.email}</option>
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => handleFilterChange("manufacturerId", String(m.id))}
+                  className={`manufacturer-card ${selectedManufacturer?.id === m.id ? "selected" : ""}`}
+                >
+                  <div className="admin-manufacturer-head">
+                    <div className="manufacturer-card-email">{m.email}</div>
+                    <span className="admin-manufacturer-badge">ID #{m.id}</span>
+                  </div>
+
+                  <div className="admin-manufacturer-kpis">
+                    <div className="manufacturer-stat admin-manufacturer-kpi">
+                      <Icon type="products" />
+                      <span>{m.totalProducts} Products</span>
+                    </div>
+                    <div className="manufacturer-stat admin-manufacturer-kpi">
+                      <Icon type="box" />
+                      <span>{m.totalBoxes} Boxes</span>
+                    </div>
+                    <div className="manufacturer-stat admin-manufacturer-kpi">
+                      <Icon type="ship" />
+                      <span>{m.shippedProducts} Shipped</span>
+                    </div>
+                    <div className="manufacturer-stat admin-manufacturer-kpi">
+                      <Icon type="verify" />
+                      <span>{m.verifiedProducts} Verified</span>
+                    </div>
+                    <div className="manufacturer-stat admin-manufacturer-kpi">
+                      <Icon type="sold" />
+                      <span>{m.soldProducts} Sold</span>
+                    </div>
+                  </div>
+
+                  <div className="admin-manufacturer-progress">
+                    <div className="admin-progress-row">
+                      <span>Ship Rate</span>
+                      <strong>
+                        {m.totalProducts ? Math.round((Number(m.shippedProducts || 0) / Number(m.totalProducts || 1)) * 100) : 0}%
+                      </strong>
+                    </div>
+                    <div className="admin-progress-track">
+                      <i style={{ width: `${m.totalProducts ? Math.round((Number(m.shippedProducts || 0) / Number(m.totalProducts || 1)) * 100) : 0}%` }} />
+                    </div>
+
+                    <div className="admin-progress-row">
+                      <span>Verification Rate</span>
+                      <strong>
+                        {m.totalProducts ? Math.round((Number(m.verifiedProducts || 0) / Number(m.totalProducts || 1)) * 100) : 0}%
+                      </strong>
+                    </div>
+                    <div className="admin-progress-track verified">
+                      <i style={{ width: `${m.totalProducts ? Math.round((Number(m.verifiedProducts || 0) / Number(m.totalProducts || 1)) * 100) : 0}%` }} />
+                    </div>
+
+                    <div className="admin-progress-row">
+                      <span>Sell-through</span>
+                      <strong>
+                        {m.totalProducts ? Math.round((Number(m.soldProducts || 0) / Number(m.totalProducts || 1)) * 100) : 0}%
+                      </strong>
+                    </div>
+                    <div className="admin-progress-track sold">
+                      <i style={{ width: `${m.totalProducts ? Math.round((Number(m.soldProducts || 0) / Number(m.totalProducts || 1)) * 100) : 0}%` }} />
+                    </div>
+                  </div>
+                </button>
               ))}
-            </select>
-          </div>
-
-          <div className="admin-filter-item">
-            <label className="admin-filter-label"><Icon type="products" />Batch ID</label>
-            <select
-              className="login-input"
-              value={filters.batchId}
-              onChange={(e) => handleFilterChange("batchId", e.target.value)}
-            >
-              <option value="">All Batches</option>
-              {batches.map((b) => (
-                <option key={`${b.manufacturerId}-${b.batchId}`} value={b.batchId}>
-                  {b.batchId} ({b.productCount})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="admin-filter-item">
-            <label className="admin-filter-label"><Icon type="box" />Box ID</label>
-            <select
-              className="login-input"
-              value={filters.boxId}
-              onChange={(e) => handleFilterChange("boxId", e.target.value)}
-            >
-              <option value="">All Boxes</option>
-              {boxes.map((b) => (
-                <option key={`${b.manufacturerId}-${b.boxId}`} value={b.boxId}>
-                  {b.boxId} ({b.productCount})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="admin-filter-item">
-            <label className="admin-filter-label"><Icon type="status" />Status</label>
-            <select
-              className="login-input"
-              value={filters.status}
-              onChange={(e) => handleFilterChange("status", e.target.value)}
-            >
-              <option value="ALL">ALL</option>
-              <option value="CREATED">CREATED</option>
-              <option value="SHIPPED">SHIPPED</option>
-              <option value="VERIFIED">VERIFIED</option>
-              <option value="SOLD">SOLD</option>
-            </select>
-          </div>
-
-          <div className="admin-filter-item">
-            <label className="admin-filter-label"><Icon type="sort" />Sort By</label>
-            <select
-              className="login-input"
-              value={filters.sortBy}
-              onChange={(e) => handleFilterChange("sortBy", e.target.value)}
-            >
-              <option value="createdAt">Created Date</option>
-              <option value="batchId">Batch</option>
-              <option value="manufacturer">Manufacturer</option>
-              <option value="productId">Product ID</option>
-              <option value="boxId">Box ID</option>
-              <option value="lifecycle">Lifecycle</option>
-            </select>
-          </div>
-
-          <div className="admin-filter-item">
-            <label className="admin-filter-label"><Icon type="calendar" />From Date</label>
-            <input
-              type="date"
-              className="login-input"
-              value={filters.fromDate}
-              onChange={(e) => handleFilterChange("fromDate", e.target.value)}
-            />
-          </div>
-
-          <div className="admin-filter-item">
-            <label className="admin-filter-label"><Icon type="calendar" />To Date</label>
-            <input
-              type="date"
-              className="login-input"
-              value={filters.toDate}
-              onChange={(e) => handleFilterChange("toDate", e.target.value)}
-            />
-          </div>
-
-          <div className="admin-filter-item">
-            <label className="admin-filter-label"><Icon type="sort" />Sort Order</label>
-            <select
-              className="login-input"
-              value={filters.sortOrder}
-              onChange={(e) => handleFilterChange("sortOrder", e.target.value)}
-            >
-              <option value="desc">DESC</option>
-              <option value="asc">ASC</option>
-            </select>
-          </div>
-
-          <div className="admin-filter-item admin-filter-actions">
-            <button className="btn-outline btn-reset" onClick={resetFilters}>
-              <Icon type="reset" />
-              Reset Filters
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="fetched-product-card admin-section">
-        <div className="products-header-row">
-          <h4 className="admin-section-title">
-            <Icon type="products" />
-            Product Inventory ({total})
-          </h4>
-          <div className="products-header-note">
-            <Icon type="sort" />
-            Sorting is applied immediately from the Sort By and Sort Order fields.
-          </div>
-        </div>
-
-        {loading ? (
-          <p className="products-loading">Loading products...</p>
-        ) : (
-          <div className="admin-products-table-wrap">
-            <table className="admin-products-table">
-              <thead>
-                <tr>
-                  <th>Product</th>
-                  <th>Manufacturer</th>
-                  <th>Box</th>
-                  <th>Shipping Address</th>
-                  <th>Batch</th>
-                  <th>Lifecycle</th>
-                  <th>Shipped</th>
-                  <th>Verified</th>
-                  <th>Sold</th>
-                  <th>Created</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {products.map((p) => (
-                  <tr key={p.id}>
-                    <td>{p.productId}</td>
-                    <td>{p.manufacturer?.email || "-"}</td>
-                    <td>{p.box?.boxId || "-"}</td>
-                    <td>{p.box?.shippingAddress || "-"}</td>
-                    <td>{p.batchId}</td>
-                    <td><span className="lifecycle-pill">{p.lifecycle}</span></td>
-                    <td>{p.shipped ? "Yes" : "No"}</td>
-                    <td>{p.verified ? "Yes" : "No"}</td>
-                    <td>{p.sold ? "Yes" : "No"}</td>
-                    <td>{new Date(p.createdAt).toLocaleString()}</td>
-                    <td>
-                      <div className="admin-actions">
-                        <button
-                          className="btn-action btn-ship"
-                          onClick={() => handleShip(p)}
-                          disabled={actionLoadingKey === `ship-${p.id}`}
-                        >
-                          <Icon type="ship" />
-                          Ship Box
-                        </button>
-                        <button
-                          className="btn-action btn-verify"
-                          onClick={() => handleVerify(p)}
-                          disabled={actionLoadingKey === `verify-${p.id}`}
-                        >
-                          <Icon type="verify" />
-                          Verify
-                        </button>
-                        <button
-                          className="btn-action btn-sold"
-                          onClick={() => handleMarkSold(p)}
-                          disabled={actionLoadingKey === `sold-${p.id}`}
-                        >
-                          <Icon type="sold" />
-                          Mark Sold
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {products.length === 0 && (
-                  <tr>
-                    <td colSpan={11} className="admin-empty-row">
-                      No products found for current filters.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+            </div>
+          </section>
         )}
 
-        <div className="admin-pagination">
-          <button
-            className="btn-outline"
-            disabled={filters.page <= 1}
-            onClick={() => setFilters((prev) => ({ ...prev, page: prev.page - 1 }))}
-          >
-            Previous
-          </button>
-          <span className="admin-page-indicator">
-            <Icon type="page" />
-            Page {filters.page} of {totalPages}
-          </span>
-          <button
-            className="btn-outline"
-            disabled={filters.page >= totalPages}
-            onClick={() => setFilters((prev) => ({ ...prev, page: prev.page + 1 }))}
-          >
-            Next
-          </button>
-        </div>
-      </div>
+        {activeSection === "inventory" && (
+          <section className="admin-card">
+            <h4 className="admin-section-title">
+              <Icon type="filter" />
+              Inventory Filters and Product Inventory
+            </h4>
+            <div className="admin-filters-grid">
+              <div className="admin-filter-item">
+                <label className="admin-filter-label"><Icon type="manufacturer" />Manufacturer</label>
+                <select
+                  className="login-input"
+                  value={filters.manufacturerId}
+                  onChange={(e) => handleFilterChange("manufacturerId", e.target.value)}
+                >
+                  <option value="">All Manufacturers</option>
+                  {manufacturers.map((m) => (
+                    <option key={m.id} value={m.id}>{m.email}</option>
+                  ))}
+                </select>
+              </div>
 
-      {statusMessage && <div className={`status-banner status-${getStatusTone(statusMessage)} admin-status`}>{statusMessage}</div>}
+              <div className="admin-filter-item">
+                <label className="admin-filter-label"><Icon type="products" />Batch ID</label>
+                <select
+                  className="login-input"
+                  value={filters.batchId}
+                  onChange={(e) => handleFilterChange("batchId", e.target.value)}
+                >
+                  <option value="">All Batches</option>
+                  {batches.map((b) => (
+                    <option key={`${b.manufacturerId}-${b.batchId}`} value={b.batchId}>
+                      {b.batchId} ({b.productCount})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="admin-filter-item">
+                <label className="admin-filter-label"><Icon type="box" />Box ID</label>
+                <select
+                  className="login-input"
+                  value={filters.boxId}
+                  onChange={(e) => handleFilterChange("boxId", e.target.value)}
+                >
+                  <option value="">All Boxes</option>
+                  {boxes.map((b) => (
+                    <option key={`${b.manufacturerId}-${b.boxId}`} value={b.boxId}>
+                      {b.boxId} ({b.productCount})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="admin-filter-item">
+                <label className="admin-filter-label"><Icon type="status" />Status</label>
+                <select
+                  className="login-input"
+                  value={filters.status}
+                  onChange={(e) => handleFilterChange("status", e.target.value)}
+                >
+                  <option value="ALL">ALL</option>
+                  <option value="CREATED">CREATED</option>
+                  <option value="SHIPPED">SHIPPED</option>
+                  <option value="VERIFIED">VERIFIED</option>
+                  <option value="SOLD">SOLD</option>
+                </select>
+              </div>
+
+              <div className="admin-filter-item">
+                <label className="admin-filter-label"><Icon type="sort" />Sort By</label>
+                <select
+                  className="login-input"
+                  value={filters.sortBy}
+                  onChange={(e) => handleFilterChange("sortBy", e.target.value)}
+                >
+                  <option value="createdAt">Created Date</option>
+                  <option value="batchId">Batch</option>
+                  <option value="manufacturer">Manufacturer</option>
+                  <option value="productId">Product ID</option>
+                  <option value="boxId">Box ID</option>
+                  <option value="lifecycle">Lifecycle</option>
+                </select>
+              </div>
+
+              <div className="admin-filter-item">
+                <label className="admin-filter-label"><Icon type="calendar" />From Date</label>
+                <input
+                  type="date"
+                  className="login-input"
+                  value={filters.fromDate}
+                  onChange={(e) => handleFilterChange("fromDate", e.target.value)}
+                />
+              </div>
+
+              <div className="admin-filter-item">
+                <label className="admin-filter-label"><Icon type="calendar" />To Date</label>
+                <input
+                  type="date"
+                  className="login-input"
+                  value={filters.toDate}
+                  onChange={(e) => handleFilterChange("toDate", e.target.value)}
+                />
+              </div>
+
+              <div className="admin-filter-item">
+                <label className="admin-filter-label"><Icon type="sort" />Sort Order</label>
+                <select
+                  className="login-input"
+                  value={filters.sortOrder}
+                  onChange={(e) => handleFilterChange("sortOrder", e.target.value)}
+                >
+                  <option value="desc">DESC</option>
+                  <option value="asc">ASC</option>
+                </select>
+              </div>
+
+              <div className="admin-filter-item admin-filter-actions">
+                <button className="btn-outline btn-reset" onClick={resetFilters}>
+                  <Icon type="reset" />
+                  Reset Filters
+                </button>
+              </div>
+            </div>
+
+            <div className="products-header-row">
+              <h4 className="admin-section-title">
+                <Icon type="products" />
+                Product Inventory ({total})
+              </h4>
+              <div className="products-header-note">
+                <Icon type="sort" />
+                Sorting is applied immediately from the Sort By and Sort Order fields.
+              </div>
+            </div>
+
+            {loading ? (
+              <p className="products-loading">Loading products...</p>
+            ) : (
+              <div className="admin-products-table-wrap">
+                <table className="admin-products-table">
+                  <thead>
+                    <tr>
+                      <th>Product</th>
+                      <th>Manufacturer</th>
+                      <th>Box</th>
+                      <th>Shipping Address</th>
+                      <th>Batch</th>
+                      <th>Lifecycle</th>
+                      <th>Shipped</th>
+                      <th>Verified</th>
+                      <th>Sold</th>
+                      <th>Created</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {products.map((p) => (
+                      <tr key={p.id}>
+                        <td>{p.productId}</td>
+                        <td>{p.manufacturer?.email || "-"}</td>
+                        <td>{p.box?.boxId || "-"}</td>
+                        <td>{p.box?.shippingAddress || "-"}</td>
+                        <td>{p.batchId}</td>
+                        <td><span className="lifecycle-pill">{p.lifecycle}</span></td>
+                        <td>{p.shipped ? "Yes" : "No"}</td>
+                        <td>{p.verified ? "Yes" : "No"}</td>
+                        <td>{p.sold ? "Yes" : "No"}</td>
+                        <td>{new Date(p.createdAt).toLocaleString()}</td>
+                        <td>
+                          <div className="admin-actions">
+                            <button
+                              className="btn-action btn-ship"
+                              onClick={() => handleShip(p)}
+                              disabled={actionLoadingKey === `ship-${p.id}`}
+                            >
+                              <Icon type="ship" />
+                              Ship Box
+                            </button>
+                            <button
+                              className="btn-action btn-verify"
+                              onClick={() => handleVerify(p)}
+                              disabled={actionLoadingKey === `verify-${p.id}`}
+                            >
+                              <Icon type="verify" />
+                              Verify
+                            </button>
+                            <button
+                              className="btn-action btn-sold"
+                              onClick={() => handleMarkSold(p)}
+                              disabled={actionLoadingKey === `sold-${p.id}`}
+                            >
+                              <Icon type="sold" />
+                              Mark Sold
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {products.length === 0 && (
+                      <tr>
+                        <td colSpan={11} className="admin-empty-row">
+                          No products found for current filters.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="admin-pagination">
+              <button
+                className="btn-outline"
+                disabled={filters.page <= 1}
+                onClick={() => setFilters((prev) => ({ ...prev, page: prev.page - 1 }))}
+              >
+                Previous
+              </button>
+              <span className="admin-page-indicator">
+                <Icon type="page" />
+                Page {filters.page} of {totalPages}
+              </span>
+              <button
+                className="btn-outline"
+                disabled={filters.page >= totalPages}
+                onClick={() => setFilters((prev) => ({ ...prev, page: prev.page + 1 }))}
+              >
+                Next
+              </button>
+            </div>
+          </section>
+        )}
+
+        {statusMessage && <div className={`status-banner status-${getStatusTone(statusMessage)} admin-status`}>{statusMessage}</div>}
+      </main>
     </div>
   );
 };

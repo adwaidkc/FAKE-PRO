@@ -1,0 +1,75 @@
+.role-container {
+  min-height: 100vh;
+  padding: 96px 20px 40px;
+  background:
+    radial-gradient(circle at 16% 10%, rgba(56, 189, 248, 0.2), transparent 34%),
+    radial-gradient(circle at 82% 18%, rgba(37, 99, 235, 0.16), transparent 36%),
+    linear-gradient(150deg, #081528, #0c1f39 45%, #112a4b);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.role-title {
+  margin: 0 0 28px;
+  color: #e9f5ff;
+  font-size: clamp(1.8rem, 3vw, 2.4rem);
+  letter-spacing: 0.12em;
+  text-align: center;
+}
+
+.role-box {
+  width: min(980px, 100%);
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.role-item {
+  border: 1px solid rgba(125, 211, 252, 0.28);
+  border-radius: 16px;
+  background: linear-gradient(160deg, rgba(15, 32, 58, 0.9), rgba(12, 25, 44, 0.78));
+  box-shadow: 0 12px 26px rgba(1, 10, 22, 0.34);
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.role-icon {
+  width: 68px;
+  height: 68px;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 6px 12px rgba(56, 189, 248, 0.3));
+}
+
+.btn-role {
+  width: 100%;
+  border: 1px solid rgba(147, 197, 253, 0.45);
+  border-radius: 10px;
+  background: linear-gradient(125deg, rgba(17, 78, 163, 0.92), rgba(29, 121, 205, 0.84));
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 10px 8px;
+  cursor: pointer;
+}
+
+.btn-role:hover {
+  filter: brightness(1.06);
+}
+
+@media (max-width: 900px) {
+  .role-box {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .role-box {
+    grid-template-columns: 1fr;
+  }
+}

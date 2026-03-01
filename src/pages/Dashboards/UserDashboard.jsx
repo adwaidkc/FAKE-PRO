@@ -1,176 +1,231 @@
-// src/components/UserDashboard.jsx
-
 import { useState } from "react";
-import { scanNfcTag } from "../../nfc/nfcScanner.js";
-import { requestChallenge,verifyResponse } from "../../services/api.js";
-import "../../index2.css";
+import {
+  ShieldCheck,
+  Search,
+  Smartphone,
+  QrCode,
+  Info,
+  Tag,
+  MapPin,
+  CheckCircle2,
+  XCircle,
+  Truck,
+  ShoppingCart,
+  Boxes,
+  CheckCheck
+} from "lucide-react";
+import { requestChallenge, verifyResponse } from "../../services/api";
+import { scanNfcTag } from "../../nfc/nfcScanner";
+import BackButton from "../../components/BackButton";
+import "../../user.css";
 
-const UserDashboard = () => {
+export default function UserDashboard() {
+  const userId = localStorage.getItem("authEmail") || "User";
+
+  const [activeSection, setActiveSection] = useState("verify");
   const [status, setStatus] = useState("");
   const [product, setProduct] = useState(null);
-  const [scanning, setScanning] = useState(false);
-  const [productId, setProductId] = useState(""); // Add productId state
+  const [searching, setSearching] = useState(false);
+  const [productId, setProductId] = useState("");
+
   const searchProductId = productId.trim();
+  const isVerified = Boolean(product?.verifiedByRetailer);
 
   const getStatusTone = (message) => {
     const text = String(message || "").toLowerCase();
     if (!text) return "info";
     if (text.includes("❌") || text.includes("fake") || text.includes("failed")) return "error";
-    if (text.includes("❗") || text.includes("please")) return "warning";
+    if (text.includes("❗") || text.includes("please")) return "error";
     if (text.includes("🔄") || text.includes("📡") || text.includes("🔐")) return "info";
-    if (text.includes("✅") || text.includes("genuine")) return "success";
+    if (text.includes("✅") || text.includes("genuine") || text.includes("verified")) return "success";
     return "info";
   };
-  
-// ---------- Scan NFC & Verify ----------
-const handleScanAndVerify = async () => {
-  if (!searchProductId) {
-    setStatus("❗ Please enter a Product ID.");
-    return;
-  }
 
-  try {
-    setScanning(true);
-    setStatus("🔄 Requesting challenge...");
-
-    // 1️⃣ Request challenge
-    const { challenge } = await requestChallenge(searchProductId);
-
-    console.log("FRONTEND DEBUG:");
-    console.log("Product ID:", searchProductId);
-    console.log("Challenge:", challenge);
-
-    // 2️⃣ NFC signs challenge
-    setStatus("📡 Signing challenge via NFC...");
-    const response = await scanNfcTag(searchProductId, challenge);
-
-    console.log("Response:", response);
-
-    // 3️⃣ Verify with backend
-    setStatus("🔐 Verifying product...");
-    const result = await verifyResponse(searchProductId, response);
-
-    if (result.status === "GENUINE") {
-      setStatus("✅ Genuine Product");
-      setProduct(result.product);
-    } else {
-      setStatus("❌ Fake Product");
-      setProduct(null);
+  const handleScanAndVerify = async () => {
+    if (!searchProductId) {
+      setStatus("❗ Please enter a Product ID.");
+      return;
     }
 
-  } catch (err) {
-    console.error("Verification error:", err);
-    setStatus("❌ Verification failed");
-    setProduct(null);
-  } finally {
-    setScanning(false);
-  }
-};
+    try {
+      setSearching(true);
+      setProduct(null);
+      setStatus("🔄 Requesting challenge...");
 
+      const { challenge } = await requestChallenge(searchProductId);
+      setStatus("📡 Signing challenge via NFC...");
+
+      const response = await scanNfcTag(searchProductId, challenge);
+      setStatus("🔐 Verifying product...");
+
+      const result = await verifyResponse(searchProductId, response);
+
+      if (result.status === "GENUINE") {
+        setStatus("✅ Genuine Product");
+        setProduct(result.product);
+      } else {
+        setStatus("❌ Fake Product");
+        setProduct(null);
+      }
+    } catch (err) {
+      console.error("Verification error:", err);
+      setStatus("❌ Verification failed");
+      setProduct(null);
+    } finally {
+      setSearching(false);
+    }
+  };
 
   return (
-    <div className="premium-dashboard" style={{ width: "100vw", padding: "20px" }}>
-      <h2>Product Verification Portal</h2>
+    <div className="user-page">
+      <BackButton to="/roles" />
 
-      {/* ================= SCAN NFC ================= */}
-      <div className="product-form">
-        <input
-          type="text"
-          placeholder="Enter Product ID"
-          value={productId}
-          onChange={e => setProductId(e.target.value)}
-          style={{ marginBottom: "10px", padding: "8px", width: "250px" }}
-        />
+      <aside className="user-sidebar">
+        <div className="user-brand">
+          <img src="/bc1.png" alt="TrustChain Logo" />
+          <h2>TrustChain</h2>
+        </div>
+
+        <div className="user-profile-card">
+          <div className="user-profile-avatar">{(userId || "U")[0].toUpperCase()}</div>
+          <div>
+            <div className="user-profile-name">User</div>
+            <div className="user-profile-id">ID: {userId}</div>
+          </div>
+        </div>
+
         <button
-          className="btn-outline"
-          onClick={handleScanAndVerify}
-          disabled={scanning}
-          style={{ marginBottom: "15px", marginLeft: "10px" }}
+          className={`user-sidebar-btn ${activeSection === "verify" ? "active" : ""}`}
+          onClick={() => setActiveSection("verify")}
         >
-          {scanning ? "Scanning NFC..." : "Scan NFC"}
+          <QrCode size={16} /> Verify Product
         </button>
 
-        {status && <div className={`status-banner status-${getStatusTone(status)}`}>{status}</div>}
+        <button
+          className={`user-sidebar-btn ${activeSection === "about" ? "active" : ""}`}
+          onClick={() => setActiveSection("about")}
+        >
+          <Info size={16} /> How It Works
+        </button>
+      </aside>
 
-        {/* ================= PRODUCT CARD ================= */}
-        {product && (
-          <div
-            className="fetched-product-card premium"
-            style={{
-              display: "flex",
-              padding: "25px",
-              gap: "25px",
-              width: "95%",
-              marginTop: "20px",
-              alignItems: "flex-start"
-            }}
-          >
-            {/* ---------- IMAGE ---------- */}
-            <div className="fetched-image">
-              <img
-                src={product.image}
-                alt={product.name}
-                className="product-preview"
-                style={{
-                  width: "350px",
-                  height: "350px",
-                  objectFit: "cover",
-                  borderRadius: "12px",
-                  boxShadow: "0 4px 15px rgba(0,0,0,0.25)"
-                }}
-              />
+      <main className="user-main">
+        {activeSection === "verify" && (
+          <section className="user-card">
+            <h2><ShieldCheck size={20} /> Product Verification Portal</h2>
+            <p className="user-subtext">
+              Enter a product ID and verify authenticity using challenge-response.
+            </p>
+
+            <div className="user-chip-row">
+              <span>Challenge Response</span>
+              <span>NFC Signature</span>
+              <span>Anti-Counterfeit</span>
             </div>
 
-            {/* ---------- DETAILS ---------- */}
-            <div className="fetched-details" style={{ flex: 1 }}>
-              <h3>{product.name}</h3>
-              <div className="status-banner status-success" style={{ marginTop: 8, display: "inline-block" }}>
-                Authenticity: Genuine Product
+            <div className="user-search-row">
+              <div className="user-input-wrap">
+                <Search size={16} />
+                <input
+                  type="text"
+                  placeholder="Enter Product ID"
+                  value={productId}
+                  onChange={(e) => setProductId(e.target.value)}
+                />
               </div>
-
-              <div
-                className="details-grid"
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(2, minmax(220px, 1fr))",
-                  gap: "12px",
-                  marginTop: "12px"
-                }}
-              >
-                <div><strong>Product ID:</strong> {product.productId}</div>
-                <div><strong>Manufacturer:</strong> {product.manufacturer}</div>
-                <div><strong>Model Number:</strong> {product.modelNumber || "-"}</div>
-                <div><strong>Batch Number:</strong> {product.batchNumber || "-"}</div>
-                <div><strong>Serial Number:</strong> {product.serialNumber || "-"}</div>
-                <div><strong>Price:</strong> ₹{product.price || "-"}</div>
-              </div>
-
-              {/* ---------- STATUS ---------- */}
-              <div
-                className="status-icons"
-                style={{
-                  marginTop: "20px",
-                  display: "flex",
-                  gap: "12px",
-                  flexWrap: "wrap"
-                }}
-              >
-                <span className={`status-banner ${product.shipped ? "status-success" : "status-warning"}`} style={{ marginTop: 0, padding: "6px 10px" }}>
-                  Shipped: {product.shipped ? "Yes" : "No"}
-                </span>
-                <span className={`status-banner ${product.verifiedByRetailer ? "status-success" : "status-warning"}`} style={{ marginTop: 0, padding: "6px 10px" }}>
-                  Verified: {product.verifiedByRetailer ? "Yes" : "No"}
-                </span>
-                <span className={`status-banner ${product.sold ? "status-error" : "status-info"}`} style={{ marginTop: 0, padding: "6px 10px" }}>
-                  Sold: {product.sold ? "Yes" : "No"}
-                </span>
-              </div>
+              <button className="btn-primary" onClick={handleScanAndVerify} disabled={searching}>
+                {searching ? "Scanning NFC..." : "Scan NFC"}
+              </button>
             </div>
-          </div>
+
+            {status && <div className={`user-status ${getStatusTone(status)}`}>{status}</div>}
+
+            <div className="user-checklist">
+              <h4><CheckCheck size={16} /> Quick Buyer Checklist</h4>
+              <p>If challenge-response fails, treat the product as suspicious.</p>
+            </div>
+
+            {product && (
+              <div className="user-product-card">
+                <div className="user-product-media">
+                  <img src={product.image || "/mob.jpg"} alt={product.name || "Product"} />
+                </div>
+
+                <div className="user-product-body">
+                  <div className={`user-result-banner ${product.sold ? "sold" : isVerified ? "verified" : "pending"}`}>
+                    {product.sold
+                      ? "Status: Previously sold product"
+                      : isVerified
+                        ? "Status: Verified distribution record"
+                        : "Status: Pending full verification"}
+                  </div>
+
+                  <div className="user-product-grid">
+                    <div><Tag size={14} /><span><strong>Product ID:</strong> {product.productId || ""}</span></div>
+                    <div><Smartphone size={14} /><span><strong>Name:</strong> {product.name || ""}</span></div>
+                    <div><MapPin size={14} /><span><strong>Manufacturer:</strong> {product.manufacturer || ""}</span></div>
+                    <div><Tag size={14} /><span><strong>Model:</strong> {product.modelNumber || ""}</span></div>
+                  </div>
+
+                  <div className="user-status-row">
+                    <StatusCard icon={Truck} label="Shipped" ok={product.shipped} />
+                    <StatusCard icon={ShieldCheck} label="Verified" ok={product.verifiedByRetailer} />
+                    <StatusCard icon={ShoppingCart} label="Sold" ok={product.sold} />
+                  </div>
+                </div>
+              </div>
+            )}
+          </section>
         )}
-      </div>
+
+        {activeSection === "about" && (
+          <section className="user-card">
+            <h2><Info size={20} /> About TrustChain Verification</h2>
+            <div className="user-about-list">
+              <article>
+                <span><Tag size={15} /></span>
+                <div>
+                  <h3>1. Product ID Input</h3>
+                  <p>Enter product ID and request a challenge from the backend.</p>
+                </div>
+              </article>
+              <article>
+                <span><Search size={15} /></span>
+                <div>
+                  <h3>2. NFC Signature</h3>
+                  <p>NFC module signs the challenge and returns a cryptographic response.</p>
+                </div>
+              </article>
+              <article>
+                <span><Boxes size={15} /></span>
+                <div>
+                  <h3>3. Backend Verification</h3>
+                  <p>Backend verifies signature and authenticity before sharing product details.</p>
+                </div>
+              </article>
+              <article>
+                <span><ShieldCheck size={15} /></span>
+                <div>
+                  <h3>4. Safe Purchase</h3>
+                  <p>Proceed only when product is marked genuine.</p>
+                </div>
+              </article>
+            </div>
+          </section>
+        )}
+      </main>
     </div>
   );
-};
+}
 
-export default UserDashboard;
+function StatusCard({  label, ok }) {
+  return (
+    <div className="user-status-card">
+      <div className="user-status-head">
+        <Icon size={15} />
+        <span>{label}</span>
+      </div>
+      {ok ? <CheckCircle2 className="ok" size={20} /> : <XCircle className="no" size={20} />}
+    </div>
+  );
+}
