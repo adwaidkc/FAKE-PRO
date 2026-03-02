@@ -20,6 +20,16 @@ dist-ssr
 artifacts
 cache
 
+# Python - not needed for Node.js/React app
+requirements.txt
+python_requirements.txt
+__pycache__
+*.pyc
+*.pyo
+
+# Duplicate/unnecessary files
+public/uberlin.zip
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
