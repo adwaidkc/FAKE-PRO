@@ -41,7 +41,9 @@ export default function UserDashboard() {
     return "info";
   };
 
-  const handleScanAndVerify = async () => {
+  const handleScanAndVerify = async (event) => {
+    event?.preventDefault?.();
+
     if (!searchProductId) {
       setStatus("❗ Please enter a Product ID.");
       return;
@@ -133,7 +135,7 @@ export default function UserDashboard() {
                   onChange={(e) => setProductId(e.target.value)}
                 />
               </div>
-              <button className="btn-primary" onClick={handleScanAndVerify} disabled={searching}>
+              <button type="button" className="btn-primary" onClick={handleScanAndVerify} disabled={searching}>
                 {searching ? "Scanning NFC..." : "Scan NFC"}
               </button>
             </div>
@@ -218,7 +220,7 @@ export default function UserDashboard() {
   );
 }
 
-function StatusCard({  label, ok }) {
+function StatusCard({ icon: Icon, label, ok }) {
   return (
     <div className="user-status-card">
       <div className="user-status-head">

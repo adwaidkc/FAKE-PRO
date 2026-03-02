@@ -153,7 +153,7 @@
 
 .admin-page .manufacturer-overview-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -192,10 +192,10 @@
   border: 1px solid rgba(147, 197, 253, 0.24);
   border-radius: 12px;
   background: linear-gradient(145deg, rgba(14, 31, 53, 0.9), rgba(12, 25, 45, 0.78));
-  padding: 12px;
+  padding: 14px;
   text-align: left;
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .admin-page .manufacturer-card.selected {
@@ -206,6 +206,8 @@
 .admin-page .manufacturer-card-email {
   color: #f2f8ff;
   font-weight: 700;
+  font-size: 0.98rem;
+  line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
@@ -223,8 +225,8 @@
 .admin-manufacturer-badge {
   border: 1px solid rgba(125, 211, 252, 0.36);
   border-radius: 999px;
-  padding: 2px 8px;
-  font-size: 0.68rem;
+  padding: 3px 9px;
+  font-size: 0.82rem;
   font-weight: 800;
   color: #cae6ff;
   background: rgba(30, 64, 110, 0.45);
@@ -239,13 +241,17 @@
 .admin-manufacturer-kpi {
   border: 1px solid rgba(147, 197, 253, 0.18);
   border-radius: 10px;
-  padding: 7px 8px;
+  padding: 9px 10px;
   background: rgba(10, 22, 38, 0.45);
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.78rem;
+  font-size: 0.98rem;
   font-weight: 700;
+}
+
+.admin-page .admin-manufacturer-kpi span {
+  font-size: 0.98rem;
 }
 
 .admin-manufacturer-progress {
@@ -259,13 +265,13 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.74rem;
+  font-size: 0.92rem;
   color: #cde4ff;
 }
 
 .admin-progress-row strong {
   color: #f2f8ff;
-  font-size: 0.76rem;
+  font-size: 0.94rem;
 }
 
 .admin-progress-track {
