@@ -31,7 +31,7 @@ const RetailerDashboard = () => {
     const text = String(message || "").toLowerCase();
     if (!text) return "info";
     if (text.includes("❌") || text.includes("failed") || text.includes("error") || text.includes("not found") || text.includes("mismatch")) return "error";
-    if (text.includes("⚠") || text.includes("required") || text.includes("cannot")) return "warning";
+    if (text.includes("⚠") || text.includes("required") || text.includes("cannot") || text.includes("already sold")) return "warning";
     if (text.includes("⏳") || text.includes("checking") || text.includes("marking") || text.includes("verifying")) return "info";
     if (text.includes("✅") || text.includes("connected") || text.includes("valid") || text.includes("found")) return "success";
     return "info";
@@ -343,10 +343,22 @@ const RetailerDashboard = () => {
                     <small>{scanResult.message}</small>
                   </div>
 
-                  {scanResult.ok && !scanResult.product?.sold && (
+                  {scanResult.ok && !scanResult.product?.sold && scanResult.product?.shipped && scanResult.product?.verifiedByRetailer && (
                     <button className="btn-primary retailer-sold-btn" onClick={() => handleMarkSold(scanResult.product.productId)}>
                       Mark as Sold (seal broken)
                     </button>
+                  )}
+
+                  {scanResult.ok && scanResult.product?.sold && (
+                    <div className="status-banner status-warning retailer-inline-note">
+                      This product is already sold.
+                    </div>
+                  )}
+
+                  {scanResult.ok && !scanResult.product?.sold && (!scanResult.product?.shipped || !scanResult.product?.verifiedByRetailer) && (
+                    <div className="status-banner status-warning retailer-inline-note">
+                      Product can be sold only after shipping and retailer verification.
+                    </div>
                   )}
                 </div>
               </div>

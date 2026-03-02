@@ -297,6 +297,10 @@
   margin-top: 14px;
 }
 
+.retailer-inline-note {
+  margin-top: 12px;
+}
+
 @media (max-width: 1080px) {
   .retailer-page {
     grid-template-columns: 1fr;
