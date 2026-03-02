@@ -52,8 +52,25 @@ const registerBatchInterface = new ethers.Interface([
 
 /* ================= APP SETUP ================= */
 
+const PORT = Number.parseInt(process.env.PORT || "5000", 10);
+const ALLOWED_ORIGINS = String(
+  process.env.CORS_ORIGIN || process.env.FRONTEND_URL || "http://localhost:5173"
+)
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 const app = express();
-app.use(cors({ origin: "http://localhost:5173" }));
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error("Not allowed by CORS"));
+    }
+  })
+);
 app.use(express.json());
 
 
@@ -1232,6 +1249,6 @@ app.post("/verify", async (req, res) => {
 
 /* ================= START SERVER ================= */
 
-app.listen(5000, () => {
-  console.log("✅ Backend running on http://localhost:5000");
+app.listen(PORT, () => {
+  console.log(`✅ Backend running on port ${PORT}`);
 });

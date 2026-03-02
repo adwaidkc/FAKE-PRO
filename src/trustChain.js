@@ -5,6 +5,7 @@ import TrustChainAbi from "./TrustChainAbi.json";
 
 // Replace the below with your contract address, or use import.meta.env for Vite, or process.env for CRA at build time
 const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 /* ================= PROVIDER ================= */
 
@@ -19,7 +20,7 @@ const buildManufacturerQuery = (manufacturerId) => {
 };
 
 const resolveManufacturerIdByBox = async (boxId, token) => {
-  const res = await fetch(`http://localhost:5000/api/db/resolve/box/${encodeURIComponent(boxId)}`, {
+  const res = await fetch(`${API_BASE}/api/db/resolve/box/${encodeURIComponent(boxId)}`, {
     headers: {
       "Authorization": `Bearer ${token}`
     }
@@ -35,7 +36,7 @@ const resolveManufacturerIdByBox = async (boxId, token) => {
 };
 
 const resolveManufacturerIdByProduct = async (productId, token) => {
-  const res = await fetch(`http://localhost:5000/api/db/resolve/product/${encodeURIComponent(productId)}`, {
+  const res = await fetch(`${API_BASE}/api/db/resolve/product/${encodeURIComponent(productId)}`, {
     headers: {
       "Authorization": `Bearer ${token}`
     }
@@ -87,7 +88,7 @@ export const registerBatch = async (batch) => {
     const contract = await getContract();
     const token = localStorage.getItem("token");
 
-    const prepareRes = await fetch("http://localhost:5000/prepare-batch", {
+    const prepareRes = await fetch(`${API_BASE}/prepare-batch`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -111,7 +112,7 @@ export const registerBatch = async (batch) => {
 
     await tx.wait();
 
-    const finalizeRes = await fetch("http://localhost:5000/finalize-batch", {
+    const finalizeRes = await fetch(`${API_BASE}/finalize-batch`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -157,7 +158,7 @@ export const shipBox = async (boxId, manufacturerId = null, shippingAddress = ""
   const resolvedManufacturerId = manufacturerId ?? await resolveManufacturerIdByBox(boxId, token);
   const normalizedShippingAddress = String(shippingAddress || "").trim();
   const query = buildManufacturerQuery(resolvedManufacturerId);
-  const syncRes = await fetch(`http://localhost:5000/api/db/box/${encodeURIComponent(boxId)}/ship${query}`, {
+  const syncRes = await fetch(`${API_BASE}/api/db/box/${encodeURIComponent(boxId)}/ship${query}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -196,7 +197,7 @@ export const verifyBox = async (boxId, manufacturerId = null) => {
   const token = localStorage.getItem("token");
   const resolvedManufacturerId = manufacturerId ?? await resolveManufacturerIdByBox(boxId, token);
   const query = buildManufacturerQuery(resolvedManufacturerId);
-  const syncRes = await fetch(`http://localhost:5000/api/db/box/${encodeURIComponent(boxId)}/verify${query}`, {
+  const syncRes = await fetch(`${API_BASE}/api/db/box/${encodeURIComponent(boxId)}/verify${query}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -239,7 +240,7 @@ export const saleCompleteBox = async (boxId, manufacturerId = null) => {
   const token = localStorage.getItem("token");
   const resolvedManufacturerId = manufacturerId ?? await resolveManufacturerIdByBox(boxId, token);
   const query = buildManufacturerQuery(resolvedManufacturerId);
-  const syncRes = await fetch(`http://localhost:5000/api/db/box/${encodeURIComponent(boxId)}/sold${query}`, {
+  const syncRes = await fetch(`${API_BASE}/api/db/box/${encodeURIComponent(boxId)}/sold${query}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -262,7 +263,7 @@ export const verifyProduct = async (productId, manufacturerId = null) => {
   const token = localStorage.getItem("token");
   const resolvedManufacturerId = manufacturerId ?? await resolveManufacturerIdByProduct(productId, token);
   const query = buildManufacturerQuery(resolvedManufacturerId);
-  const syncRes = await fetch(`http://localhost:5000/api/db/product/${encodeURIComponent(productId)}/verify${query}`, {
+  const syncRes = await fetch(`${API_BASE}/api/db/product/${encodeURIComponent(productId)}/verify${query}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -289,7 +290,7 @@ export const saleComplete = async (productId, manufacturerId = null) => {
   const token = localStorage.getItem("token");
   const resolvedManufacturerId = manufacturerId ?? await resolveManufacturerIdByProduct(productId, token);
   const query = buildManufacturerQuery(resolvedManufacturerId);
-  const syncRes = await fetch(`http://localhost:5000/api/db/product/${encodeURIComponent(productId)}/sold${query}`, {
+  const syncRes = await fetch(`${API_BASE}/api/db/product/${encodeURIComponent(productId)}/sold${query}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

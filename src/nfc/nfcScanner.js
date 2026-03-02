@@ -5,10 +5,12 @@
   Frontend calls backend NFC emulator
 */
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+
 export async function scanNfcTag(productId, challenge) {
   console.warn("📡 NFC emulation via backend");
 
-  const res = await fetch("http://localhost:5000/nfc/sign", {
+  const res = await fetch(`${API_BASE}/nfc/sign`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
