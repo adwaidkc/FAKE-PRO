@@ -218,6 +218,54 @@ app.get("/api/db/box/:boxId/products", authenticate, async (req, res) => {
   }
 });
 
+app.get("/api/db/box/:boxId/assignment", authenticate, async (req, res) => {
+  try {
+    if (req.user.role !== "RETAILER") {
+      return res.status(403).json({ error: "Retailer access required" });
+    }
+
+    const boxId = String(req.params.boxId || "").trim();
+    if (!boxId) {
+      return res.status(400).json({ error: "boxId is required" });
+    }
+
+    const assigned = await prisma.box.findFirst({
+      where: {
+        boxId,
+        retailerId: req.user.userId
+      },
+      select: {
+        boxId: true,
+        retailerEmail: true
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
+    const any = await prisma.box.findFirst({
+      where: {
+        boxId
+      },
+      select: {
+        retailerEmail: true
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
+    if (!assigned && !any) {
+      return res.status(404).json({ error: "Box not found" });
+    }
+
+    return res.json({
+      boxId,
+      assignedToCurrent: Boolean(assigned),
+      retailerEmail: any?.retailerEmail || null
+    });
+  } catch (err) {
+    console.error("âŒ Box assignment check failed:", err);
+    res.status(500).json({ error: "Box assignment check failed" });
+  }
+});
+
 app.get("/api/db/resolve/box/:boxId", authenticate, async (req, res) => {
   try {
     const boxId = String(req.params.boxId || "").trim();
@@ -582,6 +630,21 @@ app.post("/api/db/box/:boxId/ship", authenticate, async (req, res) => {
     if (!manufacturerId) return;
     const boxId = String(req.params.boxId || "").trim();
     const shippingAddress = String(req.body?.shippingAddress || "").trim();
+    const retailerEmail = String(req.body?.retailerEmail || "").trim();
+    let retailer = null;
+
+    if (req.user.role === "MANUFACTURER" && !retailerEmail) {
+      return res.status(400).json({ error: "Retailer email is required when shipping a box" });
+    }
+
+    if (retailerEmail) {
+      retailer = await prisma.user.findUnique({
+        where: { email: retailerEmail }
+      });
+      if (!retailer || retailer.role !== "RETAILER") {
+        return res.status(400).json({ error: "Retailer account not found for the provided email" });
+      }
+    }
 
     if (!boxId) {
       return res.status(400).json({ error: "boxId is required" });
@@ -593,6 +656,11 @@ app.post("/api/db/box/:boxId/ship", authenticate, async (req, res) => {
           manufacturerId,
           boxId
         }
+      },
+      select: {
+        id: true,
+        retailerId: true,
+        retailerEmail: true
       }
     });
 
@@ -600,7 +668,20 @@ app.post("/api/db/box/:boxId/ship", authenticate, async (req, res) => {
       return res.status(404).json({ error: "Box not found" });
     }
 
-    if (shippingAddress) {
+    if (box.retailerEmail && retailerEmail && box.retailerEmail.toLowerCase() !== retailerEmail.toLowerCase()) {
+      return res.status(403).json({ error: `Box ${boxId} is assigned to ${box.retailerEmail}` });
+    }
+
+    const updatePayload = {};
+    if (shippingAddress) updatePayload.shippingAddress = shippingAddress;
+    if (retailer) {
+      updatePayload.retailerId = retailer.id;
+      updatePayload.retailerEmail = retailer.email;
+    } else if (retailerEmail && req.user.role !== "MANUFACTURER") {
+      updatePayload.retailerEmail = retailerEmail;
+    }
+
+    if (Object.keys(updatePayload).length > 0) {
       await prisma.box.update({
         where: {
           manufacturerId_boxId: {
@@ -608,9 +689,7 @@ app.post("/api/db/box/:boxId/ship", authenticate, async (req, res) => {
             boxId
           }
         },
-        data: {
-          shippingAddress
-        }
+        data: updatePayload
       });
     }
 
@@ -647,6 +726,9 @@ app.post("/api/db/box/:boxId/ship", authenticate, async (req, res) => {
 
 app.post("/api/db/box/:boxId/verify", authenticate, async (req, res) => {
   try {
+    if (req.user.role !== "RETAILER") {
+      return res.status(403).json({ error: "Retailer access required" });
+    }
     const manufacturerId = await getMutationManufacturerIdResolved(req, res);
     if (!manufacturerId) return;
 
@@ -661,11 +743,20 @@ app.post("/api/db/box/:boxId/verify", authenticate, async (req, res) => {
           manufacturerId,
           boxId
         }
+      },
+      select: {
+        id: true,
+        retailerId: true,
+        retailerEmail: true
       }
     });
 
     if (!box) {
       return res.status(404).json({ error: "Box not found" });
+    }
+    if (!box.retailerId || box.retailerId !== req.user.userId) {
+      const assignedTo = box.retailerEmail ? box.retailerEmail : "another retailer";
+      return res.status(403).json({ error: `Box ${boxId} is assigned to ${assignedTo}` });
     }
 
     await prisma.product.updateMany({
@@ -698,6 +789,9 @@ app.post("/api/db/box/:boxId/verify", authenticate, async (req, res) => {
 
 app.post("/api/db/box/:boxId/sold", authenticate, async (req, res) => {
   try {
+    if (req.user.role !== "RETAILER") {
+      return res.status(403).json({ error: "Retailer access required" });
+    }
     const manufacturerId = await getMutationManufacturerIdResolved(req, res);
     if (!manufacturerId) return;
 
@@ -750,12 +844,37 @@ app.post("/api/db/box/:boxId/sold", authenticate, async (req, res) => {
 
 app.post("/api/db/product/:productId/verify", authenticate, async (req, res) => {
   try {
+    if (req.user.role !== "RETAILER") {
+      return res.status(403).json({ error: "Retailer access required" });
+    }
     const manufacturerId = await getMutationManufacturerIdResolved(req, res);
     if (!manufacturerId) return;
 
     const productId = String(req.params.productId || "").trim();
     if (!productId) {
       return res.status(400).json({ error: "productId is required" });
+    }
+
+    const product = await prisma.product.findFirst({
+      where: { manufacturerId, productId },
+      include: {
+        box: {
+          select: {
+            id: true,
+            retailerId: true,
+            retailerEmail: true
+          }
+        }
+      }
+    });
+
+    if (!product || !product.box) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    if (!product.box.retailerId || product.box.retailerId !== req.user.userId) {
+      const assignedTo = product.box.retailerEmail ? product.box.retailerEmail : "another retailer";
+      return res.status(403).json({ error: `Product is assigned to ${assignedTo}` });
     }
 
     const updated = await prisma.product.updateMany({
@@ -784,12 +903,37 @@ app.post("/api/db/product/:productId/verify", authenticate, async (req, res) => 
 
 app.post("/api/db/product/:productId/sold", authenticate, async (req, res) => {
   try {
+    if (req.user.role !== "RETAILER") {
+      return res.status(403).json({ error: "Retailer access required" });
+    }
     const manufacturerId = await getMutationManufacturerIdResolved(req, res);
     if (!manufacturerId) return;
 
     const productId = String(req.params.productId || "").trim();
     if (!productId) {
       return res.status(400).json({ error: "productId is required" });
+    }
+
+    const product = await prisma.product.findFirst({
+      where: { manufacturerId, productId },
+      include: {
+        box: {
+          select: {
+            id: true,
+            retailerId: true,
+            retailerEmail: true
+          }
+        }
+      }
+    });
+
+    if (!product || !product.box) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    if (!product.box.retailerId || product.box.retailerId !== req.user.userId) {
+      const assignedTo = product.box.retailerEmail ? product.box.retailerEmail : "another retailer";
+      return res.status(403).json({ error: `Product is assigned to ${assignedTo}` });
     }
 
     const updated = await prisma.product.updateMany({

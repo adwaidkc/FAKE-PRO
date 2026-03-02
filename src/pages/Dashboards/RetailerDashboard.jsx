@@ -9,6 +9,7 @@ import {
 import BackButton from "../../components/BackButton";
 import "../../index2.css";
 import "../../retailer.css";
+import { fetchBoxRetailerAssignment } from "../../services/api";
 
 const RetailerDashboard = () => {
   const [walletConnected, setWalletConnected] = useState(false);
@@ -57,6 +58,14 @@ const RetailerDashboard = () => {
     try {
       if (!boxId || boxId.trim() === "") {
         setStatus("Enter a Box ID first.");
+        return;
+      }
+
+      const assignment = await fetchBoxRetailerAssignment(boxId.trim());
+      if (!assignment.assignedToCurrent) {
+        const recipient = assignment.retailerEmail || "another retailer";
+        setStatus(`Box ${boxId.trim()} is assigned to ${recipient}.`);
+        setBoxProducts([]);
         return;
       }
 

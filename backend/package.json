@@ -9,7 +9,8 @@
     "db:deploy": "prisma migrate deploy",
     "db:reset": "prisma migrate reset --force --skip-seed",
     "start": "node server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "clear-assignments": "node scripts/clear-retailer-assignments.js"
   },
   "keywords": [],
   "author": "",

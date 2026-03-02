@@ -149,7 +149,7 @@ export const registerBatch = async (batch) => {
 
 /* ================= SHIP ================= */
 
-export const shipBox = async (boxId, manufacturerId = null, shippingAddress = "") => {
+export const shipBox = async (boxId, manufacturerId = null, shippingAddress = "", retailerEmail = "") => {
   const contract = await getContract();
   const tx = await contract.shipBox(boxId);
   await tx.wait();
@@ -157,6 +157,7 @@ export const shipBox = async (boxId, manufacturerId = null, shippingAddress = ""
   const token = localStorage.getItem("token");
   const resolvedManufacturerId = manufacturerId ?? await resolveManufacturerIdByBox(boxId, token);
   const normalizedShippingAddress = String(shippingAddress || "").trim();
+  const normalizedRetailerEmail = String(retailerEmail || "").trim();
   const query = buildManufacturerQuery(resolvedManufacturerId);
   const syncRes = await fetch(`${API_BASE}/api/db/box/${encodeURIComponent(boxId)}/ship${query}`, {
     method: "POST",
@@ -166,7 +167,8 @@ export const shipBox = async (boxId, manufacturerId = null, shippingAddress = ""
     },
     body: JSON.stringify({
       manufacturerId: resolvedManufacturerId,
-      shippingAddress: normalizedShippingAddress || undefined
+      shippingAddress: normalizedShippingAddress || undefined,
+      retailerEmail: normalizedRetailerEmail || undefined
     })
   });
 

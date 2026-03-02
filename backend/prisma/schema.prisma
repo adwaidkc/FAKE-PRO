@@ -28,31 +28,35 @@ enum ProductLifecycleStatus {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  username  String?
-  email     String   @unique
-  password  String
-  role      UserRole @default(USER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            Int      @id @default(autoincrement())
+  username      String?
+  email         String   @unique
+  password      String
+  role          UserRole @default(USER)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  products Product[]
-  boxes    Box[]
+  products      Product[]
+  boxes         Box[]    @relation("ManufacturerBoxes")
+  assignedBoxes Box[]    @relation("RetailerBoxes")
 
   @@index([role])
   @@index([username])
 }
 
 model Box {
-  id             Int      @id @default(autoincrement())
-  boxId          String
-  manufacturerId Int
-  batchId        String
+  id              Int      @id @default(autoincrement())
+  boxId           String
+  manufacturerId  Int
+  batchId         String
+  retailerId      Int?
+  retailerEmail   String?
   shippingAddress String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  manufacturer User @relation(fields: [manufacturerId], references: [id])
+  manufacturer User  @relation("ManufacturerBoxes", fields: [manufacturerId], references: [id])
+  retailer     User? @relation("RetailerBoxes", fields: [retailerId], references: [id])
   products     Product[]
 
   @@unique([manufacturerId, boxId])

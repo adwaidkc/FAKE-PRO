@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   connectBlockchain,
   registerBatch,
@@ -8,6 +8,7 @@ import {
 } from "../../trustChain";
 import "../../index2.css";
 import "../../manufacturer.css";
+import { fetchManufacturerDashboardSummary } from "../../services/api";
 
 const defaultBatch = {
   batchId: "BATCH-567",
@@ -64,13 +65,71 @@ const ManufacturerDashboard = () => {
   const [batchCreated, setBatchCreated] = useState(false);
   const [registerHistory, setRegisterHistory] = useState(readHistory);
 
+  const [dashboardSummary, setDashboardSummary] = useState(null);
+  const [dashboardLoading, setDashboardLoading] = useState(false);
+  const [dashboardError, setDashboardError] = useState("");
+  const [selectedBatchId, setSelectedBatchId] = useState("");
+
   const [boxId, setBoxId] = useState("");
   const [shippingAddress, setShippingAddress] = useState("");
+  const [retailerEmail, setRetailerEmail] = useState("");
   const [boxProducts, setBoxProducts] = useState([]);
 
   const [searchProductId, setSearchProductId] = useState("");
   const [fetchedProduct, setFetchedProduct] = useState(null);
   const [fetchError, setFetchError] = useState("");
+
+  const formatNumber = (value) =>
+    new Intl.NumberFormat("en-IN").format(Number(value || 0));
+
+  const formatDate = (value) => {
+    if (!value) return "-";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "-";
+    return date.toLocaleString();
+  };
+
+  const availableBatchIds = useMemo(() => {
+    const batches = new Set();
+    (dashboardSummary?.recentBoxes || []).forEach((box) => {
+      if (box.batchId) {
+        batches.add(box.batchId);
+      }
+    });
+    return Array.from(batches);
+  }, [dashboardSummary]);
+
+  const loadDashboardSummary = async (batchId) => {
+    setDashboardLoading(true);
+    setDashboardError("");
+    try {
+      const data = await fetchManufacturerDashboardSummary(batchId);
+      setDashboardSummary(data);
+    } catch (err) {
+      setDashboardError(err.message || "Failed to load analytics data");
+      setDashboardSummary(null);
+    } finally {
+      setDashboardLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeAction !== "analytics") return;
+    loadDashboardSummary(selectedBatchId);
+  }, [activeAction, selectedBatchId]);
+
+  const summaryTotals = dashboardSummary?.summary || {};
+  const totalProducts = summaryTotals.totalProducts || 0;
+  const shippedProducts = summaryTotals.shippedProducts || 0;
+  const verifiedProducts = summaryTotals.verifiedProducts || 0;
+  const soldProducts = summaryTotals.soldProducts || 0;
+  const totalBoxes = summaryTotals.totalBoxes || 0;
+  const pendingProducts =
+    summaryTotals.pendingProducts ?? Math.max(0, totalProducts - soldProducts);
+  const recentBoxes = dashboardSummary?.recentBoxes || [];
+  const shippedRate = totalProducts ? Math.min(100, (shippedProducts / totalProducts) * 100) : 0;
+  const verifiedRate = totalProducts ? Math.min(100, (verifiedProducts / totalProducts) * 100) : 0;
+  const soldRate = totalProducts ? Math.min(100, (soldProducts / totalProducts) * 100) : 0;
 
   const lastRegisteredText = useMemo(() => {
     if (!registerHistory.length) return "";
@@ -151,13 +210,17 @@ const ManufacturerDashboard = () => {
       setStatus("⚠ Shipping address is required before shipping.");
       return;
     }
+    if (!retailerEmail.trim()) {
+      setStatus("⚠ Retailer email is required before shipping.");
+      return;
+    }
     try {
       setStatus("⏳ Shipping box...");
-      await shipBox(boxId, null, shippingAddress);
+      await shipBox(boxId, null, shippingAddress, retailerEmail.trim());
       setStatus("✅ Box shipped successfully");
     } catch (err) {
       console.error(err);
-      setStatus("❌ Shipping failed");
+      setStatus(`❌ Shipping failed: ${err?.message || "Unknown error"}`);
     }
   };
 
@@ -202,6 +265,12 @@ const ManufacturerDashboard = () => {
           onClick={() => setActiveAction("fetch")}
         >
           Fetch Product
+        </button>
+        <button
+          className={`manufacturer-nav ${activeAction === "analytics" ? "active" : ""}`}
+          onClick={() => setActiveAction("analytics")}
+        >
+          Analytics
         </button>
 
         <div className="manufacturer-sidebar-foot">
@@ -368,6 +437,16 @@ const ManufacturerDashboard = () => {
                     />
                   </div>
                 </div>
+                <div className="form-row" style={{ paddingBottom: "4px" }}>
+                  <div className="form-group">
+                    <label>Retailer Email</label>
+                    <input
+                      placeholder="Retailer email"
+                      value={retailerEmail}
+                      onChange={(e) => setRetailerEmail(e.target.value)}
+                    />
+                  </div>
+                </div>
                 <div className="form-row" style={{ marginBottom: "12px" }}>
                   <button className="btn-outline" onClick={handleFetchBox}>
                     Fetch Box
@@ -396,6 +475,128 @@ const ManufacturerDashboard = () => {
                 ))}
               </div>
             </div>
+          </section>
+        )}
+
+        {activeAction === "analytics" && (
+          <section className="manufacturer-card manufacturer-analytics-card">
+            <div className="manufacturer-analytics-head">
+              <div>
+                <h2>Production Analytics</h2>
+                <p className="manufacturer-analytics-subtitle">
+                  {selectedBatchId ? `Batch ${selectedBatchId}` : "Overview of every batch you registered"}
+                </p>
+              </div>
+              <div className="manufacturer-analytics-filter">
+                <label htmlFor="manufacturer-analytics-batch">Batch</label>
+                <select
+                  id="manufacturer-analytics-batch"
+                  className="login-input"
+                  value={selectedBatchId}
+                  onChange={(e) => setSelectedBatchId(e.target.value)}
+                >
+                  <option value="">All batches</option>
+                  {availableBatchIds.map((batchId) => (
+                    <option key={batchId} value={batchId}>{batchId}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {dashboardLoading ? (
+              <p className="products-loading">Loading analytics...</p>
+            ) : (
+              <>
+                <div className="manufacturer-analytics-grid">
+                  <div className="manufacturer-analytics-kpi">
+                    <span>Manufactured</span>
+                    <strong>{formatNumber(totalProducts)}</strong>
+                    <small>{formatNumber(totalBoxes)} boxes</small>
+                  </div>
+                  <div className="manufacturer-analytics-kpi">
+                    <span>Shipped</span>
+                    <strong>{formatNumber(shippedProducts)}</strong>
+                    <small>{shippedRate.toFixed(1)}% of factory output</small>
+                  </div>
+                  <div className="manufacturer-analytics-kpi">
+                    <span>Verified</span>
+                    <strong>{formatNumber(verifiedProducts)}</strong>
+                    <small>Quality checks completed</small>
+                  </div>
+                  <div className="manufacturer-analytics-kpi">
+                    <span>Sold</span>
+                    <strong>{formatNumber(soldProducts)}</strong>
+                    <small>{soldRate.toFixed(1)}% sold</small>
+                  </div>
+                  <div className="manufacturer-analytics-kpi">
+                    <span>Pending</span>
+                    <strong>{formatNumber(pendingProducts)}</strong>
+                    <small>Awaiting retail sync</small>
+                  </div>
+                </div>
+
+                <div className="manufacturer-analytics-progress">
+                  <div className="manufacturer-analytics-progress-row">
+                    <div>
+                      <strong>Shipped vs Manufactured</strong>
+                      <small>
+                        {formatNumber(shippedProducts)} / {formatNumber(totalProducts)} shipped
+                      </small>
+                    </div>
+                    <div className="manufacturer-analytics-progress-track">
+                      <i style={{ width: `${shippedRate}%` }} />
+                    </div>
+                  </div>
+                  <div className="manufacturer-analytics-progress-row">
+                    <div>
+                      <strong>Verified coverage</strong>
+                      <small>
+                        {formatNumber(verifiedProducts)} / {formatNumber(totalProducts)} verified
+                      </small>
+                    </div>
+                    <div className="manufacturer-analytics-progress-track">
+                      <i style={{ width: `${verifiedRate}%` }} />
+                    </div>
+                  </div>
+                  <div className="manufacturer-analytics-progress-row">
+                    <div>
+                      <strong>Sell-through</strong>
+                      <small>
+                        {formatNumber(soldProducts)} / {formatNumber(totalProducts)} sold
+                      </small>
+                    </div>
+                    <div className="manufacturer-analytics-progress-track">
+                      <i style={{ width: `${soldRate}%` }} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="manufacturer-analytics-recent">
+                  <h4>Recent Boxes</h4>
+                  {recentBoxes.length === 0 && (
+                    <p className="products-loading">No boxes synced yet.</p>
+                  )}
+                  {recentBoxes.map((box) => (
+                    <div key={`${box.boxId}-${box.createdAt}`} className="manufacturer-analytics-box">
+                      <div>
+                        <strong>{box.boxId}</strong>
+                        <span>Batch {box.batchId || "-"}</span>
+                      </div>
+                      <div className="manufacturer-analytics-box-meta">
+                        <span>{formatNumber(box._count?.products || 0)} products</span>
+                        <span>{formatDate(box.createdAt)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {dashboardError && (
+              <div className="status-banner status-error" style={{ marginTop: "12px" }}>
+                {dashboardError}
+              </div>
+            )}
           </section>
         )}
 

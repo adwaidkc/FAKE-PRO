@@ -113,3 +113,36 @@ export async function fetchAdminProducts(params = {}) {
 
   return res.json();
 }
+
+export async function fetchManufacturerDashboardSummary(batchId = "") {
+  const search = new URLSearchParams();
+  if (batchId) {
+    search.set("batchId", batchId);
+  }
+  const url = `${BASE_URL}/api/db/dashboard/summary${search.toString() ? `?${search.toString()}` : ""}`;
+
+  const res = await fetch(url, {
+    headers: getAuthHeaders()
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to load dashboard summary");
+  }
+
+  return res.json();
+}
+
+export async function fetchBoxRetailerAssignment(boxId) {
+  if (!boxId) throw new Error("boxId is required");
+  const res = await fetch(`${BASE_URL}/api/db/box/${encodeURIComponent(boxId)}/assignment`, {
+    headers: getAuthHeaders()
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to check box assignment");
+  }
+
+  return res.json();
+}
