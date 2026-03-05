@@ -624,6 +624,102 @@ app.get("/api/db/dashboard/summary", authenticate, async (req, res) => {
   }
 });
 
+app.get("/api/db/retailer/analytics", authenticate, async (req, res) => {
+  try {
+    if (req.user.role !== "RETAILER") {
+      return res.status(403).json({ error: "Retailer access required" });
+    }
+
+    const retailerId = req.user.userId;
+
+    const [
+      totalBoxes,
+      totalProducts,
+      shippedProducts,
+      verifiedProducts,
+      soldProducts,
+      recentBoxesRaw,
+      areaDistributionRaw
+    ] = await Promise.all([
+      prisma.box.count({ where: { retailerId } }),
+      prisma.product.count({ where: { box: { retailerId } } }),
+      prisma.product.count({ where: { box: { retailerId }, shipped: true } }),
+      prisma.product.count({ where: { box: { retailerId }, verified: true } }),
+      prisma.product.count({ where: { box: { retailerId }, sold: true } }),
+      prisma.box.findMany({
+        where: { retailerId },
+        orderBy: { createdAt: "desc" },
+        take: 8,
+        select: {
+          boxId: true,
+          batchId: true,
+          shippingAddress: true,
+          createdAt: true,
+          products: {
+            select: {
+              verified: true,
+              sold: true,
+              shipped: true
+            }
+          }
+        }
+      }),
+    prisma.box.groupBy({
+      by: ["shippingAddress"],
+      where: { retailerId },
+      _count: { _all: true }
+    })
+  ]);
+
+    const recentBoxes = recentBoxesRaw.map((box) => {
+      const counts = box.products.reduce(
+        (acc, product) => {
+          if (product.verified) acc.verified += 1;
+          if (product.sold) acc.sold += 1;
+          if (product.shipped) acc.shipped += 1;
+          return acc;
+        },
+        { verified: 0, sold: 0, shipped: 0 }
+      );
+      return {
+        boxId: box.boxId,
+        batchId: box.batchId,
+        shippingAddress: box.shippingAddress || "Unknown",
+        createdAt: box.createdAt,
+        productCount: box.products.length,
+        verifiedProducts: counts.verified,
+        soldProducts: counts.sold,
+        shippedProducts: counts.shipped
+      };
+    });
+
+    const areaDistribution = areaDistributionRaw
+      .slice()
+      .sort((a, b) => b._count._all - a._count._all)
+      .slice(0, 6)
+      .map((entry) => ({
+        area: (String(entry.shippingAddress || "Unknown").trim() || "Unknown"),
+        boxCount: entry._count._all
+      }));
+
+    return res.json({
+      summary: {
+        totalBoxes,
+        totalProducts,
+        shippedProducts,
+        verifiedProducts,
+        soldProducts,
+        pendingProducts: Math.max(0, totalProducts - soldProducts)
+      },
+      recentBoxes,
+      areaDistribution
+    });
+  } catch (err) {
+    console.error("❌ Retailer analytics query failed:", err);
+    res.status(500).json({ error: "Retailer analytics query failed" });
+  }
+});
+
 app.post("/api/db/box/:boxId/ship", authenticate, async (req, res) => {
   try {
     const manufacturerId = await getMutationManufacturerIdResolved(req, res);

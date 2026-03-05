@@ -198,6 +198,133 @@
   border-color: #10b981;
 }
 
+.retailer-analytics-card h2 {
+  margin-bottom: 16px;
+}
+
+.retailer-analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.retailer-analytics-kpi {
+  border-radius: 12px;
+  padding: 14px;
+  border: 1px solid rgba(125, 211, 252, 0.28);
+  background: linear-gradient(135deg, rgba(15, 35, 64, 0.85), rgba(12, 28, 52, 0.75));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.retailer-analytics-kpi span {
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  color: #8fb7d9;
+  letter-spacing: 0.1em;
+}
+
+.retailer-analytics-kpi strong {
+  font-size: 1.6rem;
+}
+
+.retailer-analytics-kpi small {
+  color: #aac9ed;
+  font-size: 0.75rem;
+  line-height: 1.2;
+}
+
+.retailer-analytics-kpi.verified strong {
+  color: #34d399;
+}
+
+.retailer-analytics-kpi.sold strong {
+  color: #fb7185;
+}
+
+.retailer-area-bars {
+  margin-bottom: 18px;
+}
+
+.retailer-area-bars h4 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 1.1rem;
+  color: #e5f1ff;
+}
+
+.retailer-area-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+  color: #d9e9ff;
+}
+
+.retailer-area-track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.retailer-area-track i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #38bdf8, #22d3ee);
+  border-radius: 999px;
+}
+
+.retailer-recent-boxes {
+  margin-top: 10px;
+}
+
+.retailer-recent-boxes h4 {
+  margin-bottom: 14px;
+}
+
+.retailer-recent-box {
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  background: linear-gradient(145deg, rgba(13, 29, 52, 0.92), rgba(15, 34, 60, 0.84));
+}
+
+.retailer-recent-box-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+  font-size: 1rem;
+}
+
+.retailer-recent-box-header span {
+  color: #8fb8da;
+  font-size: 0.9rem;
+}
+
+.retailer-recent-box-meta {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  color: #a6c6e9;
+  font-size: 0.8rem;
+  margin-bottom: 10px;
+}
+
+.retailer-recent-box-stats {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 0.78rem;
+  color: #d3e6ff;
+}
+
 .retailer-pill.pending {
   color: #fde68a;
   background: #78350f;

@@ -8,6 +8,7 @@ import {
 } from "../../trustChain";
 import "../../index2.css";
 import "../../manufacturer.css";
+import BackButton from "../../components/BackButton";
 import { fetchManufacturerDashboardSummary } from "../../services/api";
 
 const defaultBatch = {
@@ -239,6 +240,7 @@ const ManufacturerDashboard = () => {
 
   return (
     <div className="manufacturer-page">
+      <BackButton to="/roles" />
       <aside className="manufacturer-sidebar">
         <div className="manufacturer-brand">
           <img src="/bc1.png" alt="TrustChain" />

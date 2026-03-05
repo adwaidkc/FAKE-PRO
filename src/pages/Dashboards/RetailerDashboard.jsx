@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   connectBlockchain,
   getProduct,
@@ -9,7 +9,7 @@ import {
 import BackButton from "../../components/BackButton";
 import "../../index2.css";
 import "../../retailer.css";
-import { fetchBoxRetailerAssignment } from "../../services/api";
+import { fetchBoxRetailerAssignment, fetchRetailerAnalytics } from "../../services/api";
 
 const RetailerDashboard = () => {
   const [walletConnected, setWalletConnected] = useState(false);
@@ -24,6 +24,9 @@ const RetailerDashboard = () => {
   const [scanProductId, setScanProductId] = useState("");
   const [scanResult, setScanResult] = useState(null);
   const [isVerifyingProduct, setIsVerifyingProduct] = useState(false);
+  const [analyticsData, setAnalyticsData] = useState(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsError, setAnalyticsError] = useState("");
   const isBoxAlreadyVerified =
     boxProducts.length > 0 &&
     boxProducts.every((p) => p.verifiedByRetailer || p.sold);
@@ -201,6 +204,35 @@ const RetailerDashboard = () => {
     }
   };
 
+  const loadAnalytics = useCallback(async () => {
+    setAnalyticsError("");
+    setAnalyticsLoading(true);
+    try {
+      const data = await fetchRetailerAnalytics();
+      setAnalyticsData(data);
+    } catch (err) {
+      console.error("Retailer analytics load failed:", err);
+      setAnalyticsError(err.message || "Failed to load retailer analytics");
+      setAnalyticsData(null);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeSection === "analytics") {
+      loadAnalytics();
+    }
+  }, [activeSection, loadAnalytics]);
+
+  const summary = analyticsData?.summary || null;
+  const areaDistribution = analyticsData?.areaDistribution || [];
+  const recentBoxesList = analyticsData?.recentBoxes || [];
+  const areaMaxCount = areaDistribution.reduce((max, entry) => Math.max(max, entry.boxCount), 0) || 1;
+  const totalProducts = summary?.totalProducts || 0;
+  const verifiedPercent = totalProducts ? ((summary.verifiedProducts / totalProducts) * 100).toFixed(1) : "0.0";
+  const soldPercent = totalProducts ? ((summary.soldProducts / totalProducts) * 100).toFixed(1) : "0.0";
+
   return (
     <div className="retailer-page">
       <BackButton to="/roles" />
@@ -224,6 +256,12 @@ const RetailerDashboard = () => {
           onClick={() => setActiveSection("product")}
         >
           Product Authenticity
+        </button>
+        <button
+          className={`retailer-nav ${activeSection === "analytics" ? "active" : ""}`}
+          onClick={() => setActiveSection("analytics")}
+        >
+          Analytics
         </button>
 
         <div className="retailer-sidebar-foot">
@@ -371,6 +409,93 @@ const RetailerDashboard = () => {
                   )}
                 </div>
               </div>
+            )}
+          </section>
+        )}
+
+        {activeSection === "analytics" && (
+          <section className="retailer-card retailer-analytics-card">
+            <h2>Operational Analytics</h2>
+            {analyticsLoading ? (
+              <p className="products-loading">Loading analytics overview...</p>
+            ) : analyticsError ? (
+              <div className="status-banner status-error">{analyticsError}</div>
+            ) : summary ? (
+              <>
+                <div className="retailer-analytics-grid">
+                  <article className="retailer-analytics-kpi">
+                    <span>Assigned Boxes</span>
+                    <strong>{summary.totalBoxes}</strong>
+                    <small>Boxes shipped to you</small>
+                  </article>
+                  <article className="retailer-analytics-kpi">
+                    <span>Products On-Chain</span>
+                    <strong>{summary.totalProducts}</strong>
+                    <small>{totalProducts ? `${totalProducts} recorded items` : "No products yet"}</small>
+                  </article>
+                  <article className="retailer-analytics-kpi verified">
+                    <span>Verified</span>
+                    <strong>
+                      {summary.verifiedProducts} ({verifiedPercent}%)
+                    </strong>
+                    <small>Retailer-verified</small>
+                  </article>
+                  <article className="retailer-analytics-kpi sold">
+                    <span>Sold</span>
+                    <strong>
+                      {summary.soldProducts} ({soldPercent}%)
+                    </strong>
+                    <small>Haul sealed as sold</small>
+                  </article>
+                </div>
+
+                <div className="retailer-area-bars">
+                  <h4>Top Shipping Areas</h4>
+                  {areaDistribution.length === 0 ? (
+                    <p className="products-loading">No shipping data yet.</p>
+                  ) : (
+                    areaDistribution.map((area) => {
+                      const width = Math.max(8, Math.round((area.boxCount / areaMaxCount) * 100));
+                      return (
+                        <div key={area.area} className="retailer-area-row">
+                          <span>{area.area}</span>
+                          <div className="retailer-area-track">
+                            <i style={{ width: `${width}%` }} />
+                          </div>
+                          <strong>{area.boxCount}</strong>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                <div className="retailer-recent-boxes">
+                  <h4>Recent Boxes</h4>
+                  {recentBoxesList.length === 0 ? (
+                    <p className="products-loading">No boxes assigned yet.</p>
+                  ) : (
+                    recentBoxesList.map((box) => (
+                      <article className="retailer-recent-box" key={`${box.boxId}-${box.createdAt}`}>
+                        <div className="retailer-recent-box-header">
+                          <strong>Box {box.boxId}</strong>
+                          <span>{box.batchId}</span>
+                        </div>
+                        <div className="retailer-recent-box-meta">
+                          <span>{new Date(box.createdAt).toLocaleDateString()}</span>
+                          <span>{box.shippingAddress}</span>
+                        </div>
+                        <div className="retailer-recent-box-stats">
+                          <small>Products: {box.productCount}</small>
+                          <small>Verified: {box.verifiedProducts}</small>
+                          <small>Sold: {box.soldProducts}</small>
+                        </div>
+                      </article>
+                    ))
+                  )}
+                </div>
+              </>
+            ) : (
+              <p className="products-loading">No analytics data yet.</p>
             )}
           </section>
         )}

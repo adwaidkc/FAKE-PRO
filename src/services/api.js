@@ -146,3 +146,16 @@ export async function fetchBoxRetailerAssignment(boxId) {
 
   return res.json();
 }
+
+export async function fetchRetailerAnalytics() {
+  const res = await fetch(`${BASE_URL}/api/db/retailer/analytics`, {
+    headers: getAuthHeaders()
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to load retailer analytics");
+  }
+
+  return res.json();
+}
